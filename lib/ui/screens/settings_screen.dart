@@ -4,6 +4,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/config_provider.dart';
+import '../widgets/path_setup_modal.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isDark;
@@ -76,7 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: widget.isDark,
                           onChanged: (_) => themeNotifier.toggleTheme(),
                           activeThumbColor: widget.isDark
-                              ? Colors.white.withOpacity(0.9)
+                              ? Colors.white.withValues(alpha: 0.9)
                               : const Color(0xFF3E4C59),
                         ),
                       ),
@@ -91,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: widget.isDark
-                              ? Colors.black.withOpacity(0.2)
+                              ? Colors.black.withValues(alpha: 0.2)
                               : AppColors.lightPaper,
                           border: Border.all(
                             color: widget.isDark
@@ -147,7 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       constraints: const BoxConstraints(minWidth: 140),
                       decoration: BoxDecoration(
                         color: widget.isDark
-                            ? Colors.black.withOpacity(0.2)
+                            ? Colors.black.withValues(alpha: 0.2)
                             : AppColors.lightPaper,
                         border: Border.all(
                           color: widget.isDark
@@ -211,8 +213,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? (widget.isDark
-                                    ? Colors.white.withOpacity(0.1)
-                                    : AppColors.lightPrimary.withOpacity(0.05))
+                                    ? Colors.white.withValues(alpha: 0.1)
+                                    : AppColors.lightPrimary
+                                        .withValues(alpha: 0.05))
                                 : Colors.transparent,
                           ),
                           child: Row(
@@ -253,6 +256,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 32),
 
+              // Translation Configuration Section
+              _SectionHeader(
+                icon: FontAwesomeIcons.gears,
+                title: 'CẤU HÌNH DỊCH THUẬT',
+                isDark: widget.isDark,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: widget.isDark ? AppColors.darkSurface : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: widget.isDark
+                        ? AppColors.darkBorder
+                        : AppColors.lightBorder,
+                  ),
+                ),
+                child: Consumer<ConfigProvider>(
+                  builder: (context, config, _) => InkWell(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => PathSetupModal(
+                          isDark: widget.isDark,
+                          onClose: () => Navigator.pop(context),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Đường dẫn Input/Output',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: widget.isDark
+                                        ? Colors.grey[200]
+                                        : AppColors.lightPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Input: ${config.inputPath}\nOutput: ${config.outputPath}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: widget.isDark
+                                        ? Colors.grey[500]
+                                        : AppColors.lightPrimary
+                                            .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          FaIcon(
+                            FontAwesomeIcons.penToSquare,
+                            size: 16,
+                            color: widget.isDark
+                                ? Colors.grey[400]
+                                : AppColors.lightPrimary.withValues(alpha: 0.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
               // Data Section
               _SectionHeader(
                 icon: FontAwesomeIcons.database,
@@ -282,8 +362,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           height: 40,
                           decoration: BoxDecoration(
                             color: widget.isDark
-                                ? Colors.white.withOpacity(0.1)
-                                : AppColors.lightPrimary.withOpacity(0.05),
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : AppColors.lightPrimary
+                                    .withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Center(
@@ -318,7 +399,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   fontSize: 14,
                                   color: widget.isDark
                                       ? Colors.grey[500]
-                                      : AppColors.lightPrimary.withOpacity(0.6),
+                                      : AppColors.lightPrimary
+                                          .withValues(alpha: 0.6),
                                 ),
                               ),
                             ],
@@ -360,8 +442,9 @@ class _SectionHeader extends StatelessWidget {
         FaIcon(
           icon,
           size: 12,
-          color:
-              isDark ? Colors.white.withOpacity(0.7) : AppColors.lightPrimary,
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.7)
+              : AppColors.lightPrimary,
         ),
         const SizedBox(width: 8),
         Text(

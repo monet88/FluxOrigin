@@ -19,7 +19,7 @@ class UploadDictionaryModal extends StatelessWidget {
     return BackdropFilter(
       filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
       child: Container(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         child: Center(
           child: Container(
             width: 500,
@@ -69,7 +69,7 @@ class UploadDictionaryModal extends StatelessWidget {
                         ),
                         style: IconButton.styleFrom(
                           backgroundColor: isDark
-                              ? Colors.white.withOpacity(0.1)
+                              ? Colors.white.withValues(alpha: 0.1)
                               : Colors.grey[100],
                           shape: const CircleBorder(),
                         ),
@@ -102,7 +102,7 @@ class UploadDictionaryModal extends StatelessWidget {
                           ),
                           filled: true,
                           fillColor: isDark
-                              ? Colors.black.withOpacity(0.2)
+                              ? Colors.black.withValues(alpha: 0.2)
                               : Colors.grey[50],
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -124,8 +124,9 @@ class UploadDictionaryModal extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide(
                               color: isDark
-                                  ? Colors.white.withOpacity(0.5)
-                                  : AppColors.lightPrimary.withOpacity(0.5),
+                                  ? Colors.white.withValues(alpha: 0.5)
+                                  : AppColors.lightPrimary
+                                      .withValues(alpha: 0.5),
                             ),
                           ),
                         ),
@@ -151,7 +152,7 @@ class UploadDictionaryModal extends StatelessWidget {
                         height: 120,
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white.withOpacity(0.05)
+                              ? Colors.white.withValues(alpha: 0.05)
                               : Colors.grey[50],
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
@@ -171,8 +172,9 @@ class UploadDictionaryModal extends StatelessWidget {
                                 FontAwesomeIcons.arrowUpFromBracket,
                                 size: 24,
                                 color: isDark
-                                    ? Colors.white.withOpacity(0.7)
-                                    : AppColors.lightPrimary.withOpacity(0.7),
+                                    ? Colors.white.withValues(alpha: 0.7)
+                                    : AppColors.lightPrimary
+                                        .withValues(alpha: 0.7),
                               ),
                               const SizedBox(height: 12),
                               Text.rich(

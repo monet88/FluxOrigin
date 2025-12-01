@@ -38,7 +38,7 @@ class TitleBar extends StatelessWidget {
                       FontAwesomeIcons.layerGroup,
                       size: 12,
                       color: isDark
-                          ? Colors.white.withOpacity(0.8)
+                          ? Colors.white.withValues(alpha: 0.8)
                           : AppColors.lightPrimary,
                     ),
                     const SizedBox(width: 8),
@@ -120,8 +120,8 @@ class _WindowButtonState extends State<_WindowButton> {
               ? (widget.isClose
                   ? const Color(0xFFC42B1C)
                   : (widget.isDark
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.black.withOpacity(0.1)))
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black.withValues(alpha: 0.1)))
               : Colors.transparent,
           child: Icon(
             widget.icon,

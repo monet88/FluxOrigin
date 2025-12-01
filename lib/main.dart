@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'ui/app.dart';
 import 'ui/theme/app_theme.dart';
+import 'ui/theme/config_provider.dart';
 
 Future<void> main() async {
   // Ensure Flutter bindings are initialized
@@ -29,8 +30,11 @@ Future<void> main() async {
 
   // Run app with theme provider
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeNotifier(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+        ChangeNotifierProvider(create: (_) => ConfigProvider()),
+      ],
       child: const MyApp(),
     ),
   );
