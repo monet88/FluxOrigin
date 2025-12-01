@@ -797,12 +797,10 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
         // Main upload zone
         Expanded(
-          child: _currentState == TranslationState.processing
-              ? _buildProcessingView()
-              : FileUploadZone(
-                  isDark: widget.isDark,
-                  onFileSelected: _onFileSelected,
-                ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _buildStateContent(),
+          ),
         ),
       ],
     ).animate().fadeIn();
