@@ -26,6 +26,7 @@ dependencies:
   url_launcher: ^6.3.2
   csv: ^6.0.0
   html: ^0.15.4
+  desktop_drop: ^0.4.4
 
 dev_dependencies:
   flutter_test:
