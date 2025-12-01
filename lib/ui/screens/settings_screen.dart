@@ -72,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         builder: (context, themeNotifier, _) => Switch(
                           value: widget.isDark,
                           onChanged: (_) => themeNotifier.toggleTheme(),
-                          activeColor: widget.isDark
+                          activeThumbColor: widget.isDark
                               ? Colors.white.withOpacity(0.9)
                               : const Color(0xFF3E4C59),
                         ),

@@ -155,9 +155,8 @@ class _TranslateScreenState extends State<TranslateScreen> {
             Switch(
               value: _useCustomDict,
               onChanged: (value) => setState(() => _useCustomDict = value),
-              activeColor: widget.isDark
-                  ? Colors.white.withOpacity(0.9)
-                  : const Color(0xFF3E4C59),
+              activeTrackColor: const Color(0xFF043222),
+              activeColor: Colors.white,
             ),
           ],
         ),

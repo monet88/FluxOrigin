@@ -37,7 +37,7 @@ class ThemeNotifier extends ChangeNotifier {
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.lightPaper,
       primaryColor: AppColors.lightPrimary,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.lightPrimary,
         secondary: AppColors.lightAccent,
         surface: AppColors.lightSurface,
@@ -55,7 +55,7 @@ class ThemeNotifier extends ChangeNotifier {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.darkPaper,
       primaryColor: Colors.white,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: Colors.white,
         secondary: Colors.white70,
         surface: AppColors.darkSurface,
