@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluxOrigin Windows Preview V2</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e5e5e5; /* Desktop wallpaper bg mock */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .font-serif-custom {
+            font-family: 'Merriweather', serif;
+        }
+        
+        /* --- CUSTOM COLORS (UPDATED: Monochrome Dark Mode) --- */
+        
+        /* Primary Color: Dark Green #043222 (STILL USED FOR LIGHT MODE) */
+        .bg-primary { background-color: #043222; }
+        .text-primary { color: #043222; }
+        
+        /* Accent Color: Lighter Green (STILL USED FOR LIGHT MODE) */
+        .bg-accent { background-color: #13503D; } 
+        .text-accent { color: #13503D; }
+        .border-accent { border-color: #13503D; }
+        
+        /* Light Mode Theme */
+        .bg-paper-light { background-color: #fdfcf8; } 
+        .bg-sidebar-light { background-color: #f4f2ed; } 
+        .bg-surface-light { background-color: #ffffff; } 
+        .border-light { border-color: #e6e4dc; }
+        
+        /* Dark Mode Theme - PURE BLACK/WHITE/GRAYSCALE */
+        .bg-paper-dark { background-color: #111111; } /* Main Canvas Background */
+        .bg-sidebar-dark { background-color: #000000; } /* Sidebar Background */
+        .bg-surface-dark { background-color: #1a1a1a; } /* Card/Input Surfaces */
+        
+        /* Custom Scrollbar for Desktop feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-animate-in {
+            animation: modalFadeIn 0.2s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const DOMAINS = [
+            { id: 'it', name: 'Công nghệ thông tin', icon: 'fa-microchip' },
+            { id: 'med', name: 'Y tế & Dược phẩm', icon: 'fa-staff-snake' },
+            { id: 'law', name: 'Pháp lý & Luật', icon: 'fa-scale-balanced' },
+            { id: 'fin', name: 'Tài chính & Ngân hàng', icon: 'fa-coins' },
+            { id: 'edu', name: 'Giáo dục & Khoa học', icon: 'fa-graduation-cap' },
+            { id: 'mkt', name: 'Marketing & Media', icon: 'fa-bullhorn' },
+        ];
+        
+        // Cập nhật: Danh sách tất cả các ngôn ngữ có thể chọn cho cả nguồn và đích
+        const ALL_LANGUAGES = ["Tiếng Anh", "Tiếng Trung", "Tiếng Việt"];
+        // Hằng số SOURCE_LANGUAGES và TARGET_LANGUAGE không còn được sử dụng nữa.
+
+        // --- Mock Data for Dictionary ---
+        const MOCK_DICTS = [
+            { id: 1, name: "IT Terminology Base", entries: 1240, lastUpdated: "2 giờ trước", type: "cloud", status: "Đã đồng bộ" },
+            { id: 2, name: "Hợp đồng kinh tế", entries: 850, lastUpdated: "1 ngày trước", type: "local", status: "Cục bộ" },
+            { id: 3, name: "Marketing Glosary 2024", entries: 320, lastUpdated: "3 ngày trước", type: "cloud", status: "Đang tải..." },
+        ];
+
+        // --- Components ---
+
+        const TitleBar = ({ isDark }) => (
+            <div className={`h-8 flex justify-between items-center select-none draggable border-b ${isDark ? 'bg-sidebar-dark text-gray-400 border-gray-800' : 'bg-[#f4f2ed] text-[#043222] border-[#e6e4dc]'}`} style={{WebkitAppRegion: 'drag'}}>
+                <div className="flex items-center px-4 space-x-2">
+                     <i className={`fa-solid fa-layer-group text-xs ${isDark ? 'text-white/80' : 'text-primary'}`}></i> 
+                    <span className="text-xs font-medium opacity-80">FluxOrigin</span>
+                </div>
+                <div className="flex h-full">
+                    <button className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors"><i className="fa-regular fa-window-minimize text-[10px] -translate-y-1"></i></button>
+                    <button className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors"><i className="fa-regular fa-window-maximize text-[10px]"></i></button>
+                    <button className="w-12 h-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"><i className="fa-solid fa-xmark text-sm"></i></button>
+                </div>
+            </div>
+        );
+
+        const SidebarItem = ({ icon, label, isActive, onClick, isDark }) => (
+            <button 
+                onClick={onClick}
+                className={`w-full flex items-center px-4 py-3 mb-1 rounded-lg transition-all duration-200 group ${
+                    isActive 
+                        ? (isDark ? 'bg-white/10 text-white font-bold' : 'bg-[#043222]/10 text-primary font-bold') 
+                        : (isDark ? 'text-gray-400 hover:bg-white/5 hover:text-gray-200' : 'text-[#043222]/70 hover:bg-[#043222]/5 hover:text-primary')
+                }`}
+            >
+                <i className={`fa-solid ${icon} w-6 text-center text-lg mr-3 transition-colors ${isActive ? (isDark ? 'text-white' : 'text-primary') : ''}`}></i>
+                <span className="text-sm">{label}</span>
+                {isActive && <div className={`ml-auto w-1 h-4 rounded-full ${isDark ? 'bg-white' : 'bg-primary'}`}></div>}
+            </button>
+        );
+
+        const LanguageSelector = ({ value, isDark, onChange, isLocked = false, availableLanguages = [] }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const dropdownRef = useRef(null);
+
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                        setIsOpen(false);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+            
+            const baseClasses = `w-full flex items-center px-4 py-2 rounded-lg border shadow-sm transition-colors `;
+            const activeClasses = isDark ? 'bg-surface-dark border-gray-700 text-gray-200' : 'bg-white border-[#e6e4dc] text-primary';
+            const hoverClasses = isLocked ? 'cursor-default opacity-80' : (isDark ? 'cursor-pointer hover:border-white/50' : 'cursor-pointer hover:border-primary/50');
+
+            return (
+                <div className="relative" ref={dropdownRef}>
+                    <button 
+                        onClick={() => !isLocked && setIsOpen(!isOpen)}
+                        className={`${baseClasses} ${activeClasses} ${hoverClasses}`}
+                    >
+                        <div className="flex items-center space-x-3">
+                             <div className={`w-6 h-6 rounded overflow-hidden flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-white/10 text-white/80' : 'bg-[#043222]/5 text-primary'}`}>
+                                {value.substring(0, 2).toUpperCase()}
+                             </div>
+                            <span className="font-medium text-sm truncate">{value}</span>
+                        </div>
+                        {!isLocked && (
+                            <i className={`fa-solid fa-chevron-down text-xs opacity-50 transition-transform duration-200 ml-auto ${isOpen ? 'rotate-180' : ''}`}></i>
+                        )}
+                    </button>
+
+                    {isOpen && !isLocked && (
+                        <div className={`absolute top-full left-0 w-full mt-2 py-1 rounded-xl shadow-xl z-50 overflow-hidden border ${isDark ? 'bg-surface-dark border-gray-700' : 'bg-white border-gray-100'}`}>
+                            {/* Cho phép hiển thị tất cả các ngôn ngữ được truyền vào, bao gồm cả ngôn ngữ hiện tại */}
+                            {availableLanguages.map((lang) => (
+                                <button
+                                    key={lang}
+                                    onClick={() => { onChange(lang); setIsOpen(false); }}
+                                    className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-3 transition-colors ${
+                                        value === lang 
+                                            ? (isDark ? 'bg-white/10 text-white font-bold' : 'bg-[#043222]/10 text-primary font-bold') 
+                                            : (isDark ? 'text-gray-300 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50')
+                                    }`}
+                                >
+                                    <div className={`w-6 h-6 rounded overflow-hidden flex items-center justify-center text-[10px] font-bold ${isDark ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                        {lang.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <span>{lang}</span>
+                                    {/* Sử dụng dấu check để đánh dấu ngôn ngữ hiện tại */}
+                                    <i className={`fa-solid fa-check text-xs ml-auto opacity-70 ${value === lang ? (isDark ? 'text-white' : 'text-primary') : 'text-transparent'}`}></i>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const FileUploadZone = ({ isDark, heightClass = "flex-1", title = "Kéo thả tài liệu vào đây", sub = "Hỗ trợ .PDF, .DOCX, .EPUB, .TXT", icon = "fa-cloud-arrow-up" }) => (
+            <div className={`${heightClass} w-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer group hover:border-accent relative overflow-hidden ${isDark ? 'border-gray-700 bg-surface-dark/50 hover:bg-surface-dark hover:border-gray-500' : 'border-gray-300 bg-white hover:bg-white hover:border-primary/50'}`}>
+                <div className="text-center p-8 z-10">
+                    <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-300 ${isDark ? 'bg-white/10 text-white/90' : 'bg-[#043222]/5 text-primary'}`}>
+                        <i className={`fa-solid ${icon} text-2xl`}></i>
+                    </div>
+                    <p className={`text-base font-medium mb-1 ${isDark ? 'text-gray-200' : 'text-primary'}`}>
+                        {title}
+                    </p>
+                    <p className={`text-xs mb-4 ${isDark ? 'text-gray-500' : 'text-[#043222]/60'}`}>
+                        {sub}
+                    </p>
+                    <button className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-primary/10 hover:bg-primary/20 text-primary'}`}>
+                        Chọn file
+                    </button>
+                </div>
+            </div>
+        );
+
+        const TranslateScreen = ({ isDark }) => {
+            const [mode, setMode] = useState('document'); 
+            const [selectedDomain, setSelectedDomain] = useState('it');
+            const [useCustomDict, setUseCustomDict] = useState(true); // Default ON
+            
+            // Cập nhật: Sử dụng state cho cả ngôn ngữ nguồn và ngôn ngữ đích
+            const [sourceLang, setSourceLang] = useState("Tiếng Anh");
+            const [targetLang, setTargetLang] = useState("Tiếng Việt"); 
+
+            // Logic swap ngôn ngữ
+            const handleSwap = () => {
+                setSourceLang(targetLang);
+                setTargetLang(sourceLang);
+            };
+
+            // Cập nhật: Hàm trả về tất cả các ngôn ngữ (3 options) cho cả hai bộ chọn
+            const getAllOptions = () => ALL_LANGUAGES;
+
+            // ĐIỀU CHỈNH: Giảm chiều cao của khối từ điển/upload từ h-32 (128px) xuống h-20 (80px)
+            const DICT_BLOCK_HEIGHT = 'h-20'; 
+
+            return (
+                <div className="flex flex-col h-full p-6 animate-fade-in">
+                    {/* Mode Toggle Tabs */}
+                    <div className="flex justify-center mb-6">
+                        <div className={`p-1 rounded-lg flex shadow-inner transition-colors ${isDark ? 'bg-white/10' : 'bg-[#E8E4D9]'}`}>
+                            <button
+                                onClick={() => setMode('document')}
+                                className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${mode === 'document' ? (isDark ? 'bg-white text-black shadow' : 'bg-white text-primary shadow') : (isDark ? 'text-gray-400 hover:text-white' : 'text-[#043222]/60 hover:text-primary')}`}
+                            >
+                                <i className="fa-solid fa-file mr-2 text-xs"></i>
+                                Tài liệu
+                            </button>
+                             <button
+                                onClick={() => setMode('specialized')}
+                                className={`px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center ${mode === 'specialized' ? (isDark ? 'bg-white text-black shadow' : 'bg-white text-primary shadow') : (isDark ? 'text-gray-400 hover:text-white' : 'text-[#043222]/60 hover:text-primary')}`}
+                            >
+                                <i className="fa-solid fa-briefcase mr-2 text-xs"></i>
+                                Chuyên ngành
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Language Control - Cập nhật để hỗ trợ swap */}
+                    <div className="flex items-center justify-center space-x-4 mb-6 z-20 relative">
+                        <div className="w-48">
+                            <LanguageSelector 
+                                value={sourceLang} 
+                                isDark={isDark} 
+                                onChange={setSourceLang} 
+                                availableLanguages={getAllOptions()} // TRUYỀN VÀO TẤT CẢ 3 NGÔN NGỮ
+                            />
+                        </div>
+                        {/* Nút swap đã được kích hoạt */}
+                        <button 
+                            onClick={handleSwap}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isDark ? 'text-white hover:bg-white/10' : 'text-primary hover:bg-primary/10'}`}
+                        >
+                            <i className="fa-solid fa-arrow-right-arrow-left"></i>
+                        </button>
+                        <div className="w-48">
+                            <LanguageSelector 
+                                value={targetLang} 
+                                isDark={isDark} 
+                                onChange={setTargetLang} 
+                                availableLanguages={getAllOptions()} // TRUYỀN VÀO TẤT CẢ 3 NGÔN NGỮ
+                                isLocked={false} 
+                            />
+                        </div>
+                    </div>
+
+                    {/* Content Switcher */}
+                    {mode === 'document' && (
+                        <div className="flex-1 flex flex-col z-0 overflow-y-auto pr-2">
+                            <div className="flex-1 flex flex-col mb-0">
+                                <FileUploadZone isDark={isDark} heightClass="h-full" />
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'specialized' && (
+                        <div className="flex-1 flex flex-col h-full z-0 animate-fade-in">
+                            {/* COMPACT UI: Header Row */}
+                            <div className="flex items-center justify-between mb-4 px-1">
+                                <div className="flex items-center space-x-2">
+                                    {/* ICON theo màu chủ đạo */}
+                                    <i className={`fa-solid fa-book-bookmark ${isDark ? 'text-white' : 'text-primary'}`}></i>
+                                    <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Từ điển chuyên ngành</span>
+                                </div>
+                                <label className="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={useCustomDict} onChange={() => setUseCustomDict(!useCustomDict)} className="sr-only peer" />
+                                    {/* Đồng bộ kích thước Toggle - Đã sửa w-12 h-7 */}
+                                    <div className={`relative w-12 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all ${isDark ? 'peer-checked:bg-white/90' : 'peer-checked:bg-[#3E4C59]'}`}></div>
+                                </label>
+                            </div>
+
+                            {/* LOGIC: Show Upload Box OR AI Auto-gen Box */}
+                            <div className={`mb-4 animate-fade-in ${DICT_BLOCK_HEIGHT}`}>
+                                {useCustomDict ? (
+                                    // SHOW: Upload Box 
+                                    <div className={`p-4 h-full rounded-xl border border-dashed flex items-center justify-between ${isDark ? 'bg-white/5 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+                                        <div className="flex items-center space-x-4">
+                                            {/* ICON theo màu chủ đạo */}
+                                            <div className={`w-8 h-8 flex items-center justify-center ${isDark ? 'text-white' : 'text-primary'}`}>
+                                                <i className="fa-solid fa-upload text-lg"></i>
+                                            </div>
+                                            <div>
+                                                {/* Giảm kích thước text để phù hợp với chiều cao mới */}
+                                                <p className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Tải lên từ điển của bạn</p>
+                                                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>.CSV, .TBX, .XLSX</p>
+                                            </div>
+                                        </div>
+                                        <button className={`text-xs px-4 py-2 rounded border transition-colors ${isDark ? 'border-gray-500 text-gray-300 hover:bg-white/10' : 'border-gray-300 text-gray-600 hover:bg-white bg-white shadow-sm'}`}>
+                                            Chọn file
+                                        </button>
+                                    </div>
+                                ) : (
+                                    // SHOW: AI Auto-generation Box 
+                                    <div className={`p-4 h-full rounded-xl border flex items-center space-x-4 ${isDark ? 'bg-white/5 border-gray-700' : 'bg-[#e8e6df] border-[#e6e4dc]'}`}>
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDark ? 'bg-white/10 text-white' : 'bg-[#d1fae5] text-accent'}`}>
+                                            <i className="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                                        </div>
+                                        <div>
+                                            <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-[#043222]'}`}>AI Tự động tạo từ điển</p>
+                                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-[#043222]/60'}`}>Hệ thống sẽ tự động phân tích tài liệu và trích xuất thuật ngữ chuyên ngành.</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Main Upload Zone */}
+                            <div className="flex-1 flex flex-col bg-opacity-50 mt-2">
+                                <FileUploadZone isDark={isDark} heightClass="h-full" />
+                            </div>
+                            
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const DictionaryScreen = ({ isDark, openModal }) => (
+            <div className="p-8 h-full flex flex-col animate-fade-in">
+                <div className="flex justify-between items-end mb-8">
+                    <div>
+                        <h2 className={`text-2xl font-bold mb-2 font-serif-custom ${isDark ? 'text-white' : 'text-primary'}`}>
+                            Từ điển & Thuật ngữ
+                        </h2>
+                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-[#043222]/70'}`}>
+                            Quản lý các tệp từ điển cá nhân và chuyên ngành.
+                        </p>
+                    </div>
+                    {/* Nút Thêm mới (khi click sẽ mở Modal) */}
+                    <button 
+                        onClick={openModal}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors border flex items-center ${isDark ? 'bg-white text-black border-white hover:bg-gray-200' : 'bg-primary text-white border-primary hover:bg-primary/80'}`}
+                    >
+                        <i className="fa-solid fa-plus mr-2"></i> Thêm mới
+                    </button>
+                </div>
+
+                <div className={`flex-1 overflow-hidden rounded-xl border ${isDark ? 'bg-surface-dark border-gray-700' : 'bg-white border-[#e6e4dc]'}`}>
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className={`text-xs font-bold uppercase tracking-wider border-b ${isDark ? 'text-gray-400 border-gray-700 bg-black/20' : 'text-gray-500 border-gray-100 bg-gray-50/50'}`}>
+                                <th className="p-4 font-medium">Tên từ điển</th>
+                                <th className="p-4 font-medium text-center">Số mục</th>
+                                <th className="p-4 font-medium">Loại</th>
+                                <th className="p-4 font-medium">Cập nhật</th>
+                                <th className="p-4 font-medium text-right">Trạng thái</th>
+                                <th className="p-4 font-medium text-right"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {MOCK_DICTS.map((dict, index) => (
+                                <tr key={dict.id} className={`group text-sm transition-colors border-b last:border-0 ${isDark ? 'border-gray-800 hover:bg-white/5 text-gray-300' : 'border-gray-50 hover:bg-gray-50 text-gray-700'}`}>
+                                    <td className="p-4">
+                                        <div className="flex items-center space-x-3">
+                                            <div className={`w-8 h-8 rounded flex items-center justify-center ${isDark ? 'bg-white/10 text-white' : 'bg-primary/10 text-primary'}`}>
+                                                <i className="fa-solid fa-book text-xs"></i>
+                                            </div>
+                                            <span className={`font-medium ${isDark ? 'text-white' : 'text-primary'}`}>{dict.name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-center font-mono text-xs opacity-70">{dict.entries.toLocaleString()}</td>
+                                    <td className="p-4">
+                                        <span className={`text-xs px-2 py-1 rounded border ${
+                                            dict.type === 'cloud' 
+                                                ? (isDark ? 'border-blue-500/30 text-blue-400 bg-blue-500/10' : 'border-blue-200 text-blue-700 bg-blue-50')
+                                                : (isDark ? 'border-gray-600 text-gray-400 bg-gray-800' : 'border-gray-200 text-gray-600 bg-gray-100')
+                                            }`}>
+                                            {dict.type === 'cloud' ? <><i className="fa-solid fa-cloud text-[10px] mr-1"></i> Cloud</> : <><i className="fa-solid fa-hard-drive text-[10px] mr-1"></i> Local</>}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-xs opacity-60">{dict.lastUpdated}</td>
+                                    <td className="p-4 text-right">
+                                        <div className="flex items-center justify-end space-x-2">
+                                            <div className={`w-2 h-2 rounded-full ${dict.status === 'Đã đồng bộ' ? 'bg-green-500' : (dict.status === 'Cục bộ' ? 'bg-gray-400' : 'bg-yellow-500 animate-pulse')}`}></div>
+                                            <span className="text-xs">{dict.status}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDark ? 'hover:bg-white/20 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-400 hover:text-primary'}`}>
+                                            <i className="fa-solid fa-ellipsis-vertical"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                     {/* Empty State Mock (Visual filler for list end) */}
+                     <div className={`p-8 text-center border-t border-dashed ${isDark ? 'border-gray-800 text-gray-600' : 'border-gray-100 text-gray-400'}`}>
+                        <p className="text-xs italic">Hiển thị 3 / 3 từ điển</p>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const HistoryScreen = ({ isDark }) => (
+            <div className="p-8 h-full flex flex-col animate-fade-in">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className={`text-2xl font-bold font-serif-custom ${isDark ? 'text-white' : 'text-primary'}`}>Lịch sử dịch thuật</h2>
+                    <div className={`flex rounded-lg overflow-hidden border ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                         <button className={`px-3 py-1.5 text-xs font-medium ${isDark ? 'bg-white text-black' : 'bg-primary text-white'}`}>Tất cả</button>
+                         <button className={`px-3 py-1.5 text-xs font-medium ${isDark ? 'bg-transparent text-gray-400 hover:text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>Đã lưu</button>
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 pb-4">
+                    {[1,2,3,4,5,6].map((i) => (
+                        <div key={i} className={`p-5 rounded-xl border group hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden ${isDark ? 'bg-surface-dark border-gray-700 hover:border-white/50' : 'bg-white border-[#e6e4dc] hover:border-primary/50 hover:shadow-lg'}`}>
+                            <div className="flex justify-between items-center mb-3">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isDark ? 'text-white border border-white/30' : 'text-primary border border-primary/30'}`}>EN → VI</span> 
+                                <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-[#043222]/50'}`}>2 phút trước</span>
+                            </div>
+                            <div className="space-y-2">
+                                <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-300' : 'text-primary'}`}>FluxOrigin is the sibling app...</p>
+                                <div className={`h-px w-full opacity-10 ${isDark ? 'bg-white' : 'bg-black'}`}></div>
+                                <p className={`font-serif-custom text-base truncate ${isDark ? 'text-gray-100' : 'text-primary'}`}>FluxOrigin là ứng dụng anh em...</p>
+                            </div>
+                             {/* Hover Action */}
+                             <div className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                                <button className={`w-6 h-6 rounded-full flex items-center justify-center ${isDark ? 'bg-white text-black' : 'bg-primary text-white'}`}>
+                                    <i className="fa-solid fa-arrow-right text-[10px]"></i>
+                                </button>
+                             </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const SettingsScreen = ({ isDark, toggleTheme }) => {
+             const [selectedModel, setSelectedModel] = useState("Qwen 3 14B");
+             const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+             const models = ["Qwen 3 14B", "GPT-4o", "Claude 3.5 Sonnet", "Gemini 1.5 Pro"];
+             const [settingsSelectedDomain, setSettingsSelectedDomain] = useState(null); 
+
+             return (
+                 <div className="p-8 h-full max-w-3xl mx-auto overflow-y-auto animate-fade-in">
+                    <h2 className={`text-2xl font-bold mb-8 font-serif-custom ${isDark ? 'text-white' : 'text-primary'}`}>Cài đặt</h2>
+                    
+                    <div className="space-y-8">
+                        {/* Appearance Section */}
+                        <section>
+                             <h3 className={`text-xs font-bold tracking-widest mb-4 uppercase flex items-center ${isDark ? 'text-white/70' : 'text-primary'}`}>
+                                 <i className="fa-solid fa-palette mr-2"></i> Giao diện
+                            </h3>
+                            <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-surface-dark border-gray-700' : 'bg-white border-[#e6e4dc]'}`}>
+                                <div className={`flex items-center justify-between p-5 border-b ${isDark ? 'border-gray-700' : 'border-[#e6e4dc]'}`}>
+                                    <div>
+                                        <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-primary'}`}>Chế độ tối (Dark Mode)</div>
+                                        <div className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-[#043222]/60'}`}>Sử dụng giao diện tối để bảo vệ mắt</div>
+                                    </div>
+                                    <button onClick={toggleTheme} className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ${isDark ? 'bg-white/20' : 'bg-[#e0ded6]'}`}>
+                                        <div className={`w-6 h-6 rounded-full bg-white shadow-md transform transition-transform duration-300 ${isDark ? 'translate-x-6' : ''}`}></div>
+                                    </button>
+                                </div>
+                                 <div className="flex items-center justify-between p-5">
+                                    <div>
+                                        <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-primary'}`}>Font chữ hiển thị</div>
+                                        <div className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-[#043222]/60'}`}>Tùy chỉnh font chữ cho phần đọc</div>
+                                    </div>
+                                    <div className={`px-4 py-2 rounded border cursor-pointer ${isDark ? 'bg-black/20 border-gray-600 text-gray-300' : 'bg-[#fdfcf8] border-[#e6e4dc] text-primary'}`}>
+                                        Merriweather (Mặc định)
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* AI Section */}
+                        <section>
+                             <h3 className={`text-xs font-bold tracking-widest mb-4 uppercase flex items-center ${isDark ? 'text-white/70' : 'text-primary'}`}>
+                                 <i className="fa-solid fa-brain mr-2"></i> Cấu hình AI
+                            </h3>
+                            <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-surface-dark border-gray-700' : 'bg-white border-[#e6e4dc]'}`}>
+                                
+                                {/* Model Selection */}
+                                <div className={`flex items-center justify-between p-5 border-b ${isDark ? 'border-gray-700' : 'border-[#e6e4dc]'}`}>
+                                    <div>
+                                        <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-primary'}`}>Mô hình dịch thuật</div>
+                                        <div className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-[#043222]/60'}`}>Chọn mô hình ngôn ngữ chính</div>
+                                    </div>
+                                    
+                                    <div className="relative">
+                                        <button 
+                                            onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                                            className={`px-4 py-2 rounded border cursor-pointer flex items-center min-w-[140px] justify-between transition-colors ${isDark ? 'bg-black/20 border-gray-600 text-gray-300 hover:border-white/50' : 'bg-[#fdfcf8] border-[#e6e4dc] text-primary hover:border-primary/50'}`}
+                                        >
+                                            <span>{selectedModel}</span>
+                                            <i className={`fa-solid fa-chevron-down text-xs opacity-50 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`}></i>
+                                        </button>
+                                        
+                                        {isModelDropdownOpen && (
+                                            <div className={`absolute top-full right-0 mt-2 w-48 rounded-lg shadow-xl z-50 border overflow-hidden ${isDark ? 'bg-surface-dark border-gray-700' : 'bg-white border-[#e6e4dc]'}`}>
+                                                {models.map(m => (
+                                                    <button
+                                                        key={m}
+                                                        onClick={() => { setSelectedModel(m); setIsModelDropdownOpen(false); }}
+                                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-black/5 flex items-center justify-between ${selectedModel === m ? (isDark ? 'text-white font-bold bg-white/10' : 'text-primary font-bold bg-[#043222]/5') : (isDark ? 'text-gray-300' : 'text-gray-600')}`}
+                                                    >
+                                                        {m}
+                                                        {selectedModel === m && <i className="fa-solid fa-check text-xs"></i>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Đã loại bỏ phần CHỌN LĨNH VỰC MẶC ĐỊNH theo yêu cầu */}
+                                
+                            </div>
+                        </section>
+
+                        {/* Data Section */}
+                        <section>
+                             <h3 className={`text-xs font-bold tracking-widest mb-4 uppercase flex items-center ${isDark ? 'text-white/70' : 'text-primary'}`}>
+                                 <i className="fa-solid fa-database mr-2"></i> Dữ liệu
+                            </h3>
+                             <div className={`rounded-xl border overflow-hidden ${isDark ? 'bg-surface-dark border-gray-700' : 'bg-white border-[#e6e4dc]'}`}>
+                                <div className="p-5 flex items-center hover:bg-black/5 cursor-pointer transition-colors">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${isDark ? 'bg-white/10 text-white' : 'bg-[#043222]/5 text-primary'}`}>
+                                        <i className="fa-solid fa-cloud-arrow-down"></i>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className={`font-medium ${isDark ? 'text-gray-200' : 'text-primary'}`}>Quản lý gói ngôn ngữ Offline</div>
+                                        <div className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-[#043222]/60'}`}>Đã tải: Tiếng Anh, Tiếng Việt (120MB)</div>
+                                    </div>
+                                    <i className="fa-solid fa-chevron-right text-gray-400 text-sm"></i>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- NEW COMPONENT: Upload Dictionary Modal ---
+        const UploadDictionaryModal = ({ isOpen, onClose, isDark }) => {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm transition-opacity">
+                    <div className={`w-full max-w-lg rounded-2xl shadow-2xl modal-animate-in overflow-hidden ${isDark ? 'bg-surface-dark border border-gray-700' : 'bg-white border border-gray-100'}`}>
+                        {/* Header */}
+                        <div className={`p-6 border-b flex justify-between items-center ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                            <h3 className={`text-xl font-bold font-serif-custom ${isDark ? 'text-white' : 'text-primary'}`}>Tải lên Từ điển Mới</h3>
+                            <button onClick={onClose} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDark ? 'text-gray-400 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100'}`}>
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-6">
+                            {/* Input: Tên từ điển */}
+                            <div>
+                                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Tên từ điển</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ví dụ: Thuật ngữ Công nghệ thông tin 2025" 
+                                    className={`w-full p-3 rounded-lg border text-sm transition-colors ${isDark ? 'bg-black/20 border-gray-600 text-white placeholder-gray-500 focus:border-white/50' : 'bg-gray-50 border-gray-300 text-primary placeholder-gray-400 focus:border-primary/50'}`}
+                                />
+                            </div>
+                            
+                            {/* File Upload Zone */}
+                            <div className="pt-2">
+                                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Chọn tệp từ máy tính</label>
+                                <div className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all hover:border-accent ${isDark ? 'border-gray-600 bg-white/5 hover:bg-white/10' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
+                                    <div className="text-center p-4">
+                                        <i className={`fa-solid fa-arrow-up-from-bracket text-2xl mb-2 ${isDark ? 'text-white/70' : 'text-primary/70'}`}></i>
+                                        <p className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Kéo và thả file hoặc <span className={`underline ${isDark ? 'text-white' : 'text-primary'}`}>Chọn từ máy</span></p>
+                                        <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Hỗ trợ: .CSV, .TBX, .XLSX</p>
+                                    </div>
+                                    <input type="file" className="absolute w-full h-full opacity-0 cursor-pointer" accept=".csv,.tbx,.xlsx" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className={`p-6 border-t flex justify-end space-x-3 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+                            <button 
+                                onClick={onClose} 
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-white/10' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`}
+                            >
+                                Hủy
+                            </button>
+                            <button className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isDark ? 'bg-white text-black hover:bg-gray-200' : 'bg-primary text-white hover:bg-primary/80'}`}>
+                                Tải lên
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Khắc phục lỗi: Thay thế khai báo arrow function bằng khai báo function truyền thống
+        // để đảm bảo hoisting và truy cập được ở cuối script.
+        function App() {
+            const [isDark, setIsDark] = useState(false);
+            const [tab, setTab] = useState(0);
+            const [isUploadModalOpen, setIsUploadModalOpen] = useState(false); // NEW STATE for Modal
+
+            const toggleTheme = () => setIsDark(!isDark);
+
+            return (
+                <div className={`shadow-2xl rounded-lg overflow-hidden flex flex-col transition-all duration-300 border ${isDark ? 'dark bg-paper-dark border-gray-700' : 'bg-[#fdfcf8] border-[#e6e4dc]'}`} style={{ width: '1000px', height: '700px' }}>
+                    
+                    {/* Window Title Bar */}
+                    <TitleBar isDark={isDark} />
+
+                    {/* Main Content Area */}
+                    <div className="flex flex-1 overflow-hidden">
+                        
+                        {/* Sidebar */}
+                        <div className={`w-64 flex flex-col p-4 border-r transition-colors duration-300 overflow-y-auto ${isDark ? 'bg-sidebar-dark border-gray-800' : 'bg-[#f4f2ed] border-[#e6e4dc]'}`}>
+                            
+                            {/* User Profile Snippet */}
+                            <div className="mb-8 px-2 flex items-center space-x-3">
+                                {/* Used bg-white/10 in dark mode for monochrome look */}
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md ${isDark ? 'bg-white/10' : 'bg-gradient-to-tr from-primary/70 to-primary'}`}>
+                                    FL
+                                </div>
+                                <div>
+                                    <div className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-primary'}`}>Flux User</div>
+                                    {/* Used text-white/70 in dark mode */}
+                                    <div className={`text-[10px] ${isDark ? 'text-white/70' : 'text-primary'}`}>Premium Account</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1 flex-1">
+                                <SidebarItem icon="fa-language" label="Dịch thuật" isActive={tab === 0} onClick={() => setTab(0)} isDark={isDark} />
+                                <SidebarItem icon="fa-clock-rotate-left" label="Lịch sử" isActive={tab === 1} onClick={() => setTab(1)} isDark={isDark} />
+                                <SidebarItem icon="fa-book-open-reader" label="Từ điển" isActive={tab === 3} onClick={() => setTab(3)} isDark={isDark} />
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-500/10">
+                                <SidebarItem icon="fa-gear" label="Cài đặt" isActive={tab === 2} onClick={() => setTab(2)} isDark={isDark} />
+                            </div>
+                        </div>
+
+                        {/* Content View */}
+                        <div className={`flex-1 overflow-hidden relative transition-colors duration-300 ${isDark ? 'bg-paper-dark' : 'bg-paper-light'}`}>
+                             {tab === 0 && <TranslateScreen isDark={isDark} />}
+                             {tab === 1 && <HistoryScreen isDark={isDark} />}
+                             {tab === 2 && <SettingsScreen isDark={isDark} toggleTheme={toggleTheme} />}
+                             {tab === 3 && <DictionaryScreen 
+                                                isDark={isDark} 
+                                                openModal={() => setIsUploadModalOpen(true)} // Truyền hàm mở modal
+                                            />}
+                        </div>
+
+                    </div>
+                    
+                    {/* NEW: Upload Modal Component */}
+                    <UploadDictionaryModal 
+                        isOpen={isUploadModalOpen} 
+                        onClose={() => setIsUploadModalOpen(false)} 
+                        isDark={isDark} 
+                    />
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
