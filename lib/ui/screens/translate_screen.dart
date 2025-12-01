@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/file_upload_zone.dart';
+import '../../controllers/translation_controller.dart';
+import '../theme/config_provider.dart';
 
 class TranslateScreen extends StatefulWidget {
   final bool isDark;
@@ -21,6 +24,12 @@ class _TranslateScreenState extends State<TranslateScreen> {
   String _targetLang = 'Tiếng Việt';
   bool _useCustomDict = true;
 
+  // State for processing
+  final TranslationController _controller = TranslationController();
+  bool _isProcessing = false;
+  double _progress = 0.0;
+  String _statusMessage = "";
+
   final List<String> _allLanguages = ['Tiếng Anh', 'Tiếng Trung', 'Tiếng Việt'];
 
   void _swapLanguages() {
@@ -29,6 +38,68 @@ class _TranslateScreenState extends State<TranslateScreen> {
       _sourceLang = _targetLang;
       _targetLang = temp;
     });
+  }
+
+  Future<void> _handleFileSelection(String filePath) async {
+    final configProvider = context.read<ConfigProvider>();
+
+    // 1. Validate Config
+    if (!configProvider.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng cấu hình thư mục trước!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 2. Execute
+    setState(() {
+      _isProcessing = true;
+      _progress = 0.0;
+      _statusMessage = "Đang khởi tạo...";
+    });
+
+    try {
+      await _controller.processFile(filePath, (status, progress) {
+        if (mounted) {
+          setState(() {
+            _statusMessage = status;
+            _progress = progress;
+          });
+        }
+      });
+
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _statusMessage = "Dịch hoàn tất!";
+          _progress = 1.0;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dịch hoàn tất!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _statusMessage = "Lỗi: $e";
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -119,7 +190,12 @@ class _TranslateScreenState extends State<TranslateScreen> {
           // Content based on mode
           Expanded(
             child: _mode == 'document'
-                ? FileUploadZone(isDark: widget.isDark).animate().fadeIn()
+                ? (_isProcessing
+                    ? _buildProcessingView()
+                    : FileUploadZone(
+                        isDark: widget.isDark,
+                        onFileSelected: _handleFileSelection,
+                      ).animate().fadeIn())
                 : _buildSpecializedMode(),
           ),
         ],
@@ -310,9 +386,72 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
         // Main upload zone
         Expanded(
-          child: FileUploadZone(isDark: widget.isDark),
+          child: _isProcessing
+              ? _buildProcessingView()
+              : FileUploadZone(
+                  isDark: widget.isDark,
+                  onFileSelected: _handleFileSelection,
+                ),
         ),
       ],
+    ).animate().fadeIn();
+  }
+
+  Widget _buildProcessingView() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: widget.isDark
+            ? AppColors.darkSurface.withOpacity(0.5)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.isDark ? const Color(0xFF444444) : Colors.grey[300]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: widget.isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : AppColors.lightPrimary.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: CircularProgressIndicator(
+              value: _progress > 0 ? _progress : null,
+              strokeWidth: 6,
+              color: widget.isDark ? Colors.white : AppColors.lightPrimary,
+              backgroundColor: widget.isDark ? Colors.white24 : Colors.black12,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _statusMessage,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: widget.isDark ? Colors.white : AppColors.lightPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "${(_progress * 100).toStringAsFixed(1)}%",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: widget.isDark ? Colors.white70 : AppColors.lightPrimary,
+            ),
+          ),
+        ],
+      ),
     ).animate().fadeIn();
   }
 }

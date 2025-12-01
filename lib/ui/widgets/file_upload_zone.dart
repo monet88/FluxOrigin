@@ -9,12 +9,15 @@ class FileUploadZone extends StatefulWidget {
   final String subtitle;
   final IconData icon;
 
+  final Function(String)? onFileSelected;
+
   const FileUploadZone({
     super.key,
     required this.isDark,
     this.title = 'Kéo thả tài liệu vào đây',
     this.subtitle = 'Hỗ trợ .TXT, .EPUB',
     this.icon = FontAwesomeIcons.cloudArrowUp,
+    this.onFileSelected,
   });
 
   @override
@@ -99,10 +102,13 @@ class _FileUploadZoneState extends State<FileUploadZone> {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () async {
-                    await FilePicker.platform.pickFiles(
+                    final result = await FilePicker.platform.pickFiles(
                       type: FileType.custom,
                       allowedExtensions: ['txt', 'epub'],
                     );
+                    if (result != null && result.files.single.path != null) {
+                      widget.onFileSelected?.call(result.files.single.path!);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: widget.isDark
