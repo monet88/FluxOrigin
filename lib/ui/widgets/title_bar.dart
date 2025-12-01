@@ -58,7 +58,7 @@ class TitleBar extends StatelessWidget {
             // Right: Window controls
             _WindowButton(
               isDark: isDark,
-              icon: Icons.minimize,
+              icon: Icons.remove,
               onPressed: () => windowManager.minimize(),
             ),
             _WindowButton(
@@ -113,14 +113,19 @@ class _WindowButtonState extends State<_WindowButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: Container(
-          width: 48,
-          height: 32,
+          width: 46,
+          height: double.infinity,
+          alignment: Alignment.center,
           color: _isHovered
-              ? (widget.isClose ? Colors.red : Colors.white.withOpacity(0.1))
+              ? (widget.isClose
+                  ? const Color(0xFFC42B1C)
+                  : (widget.isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.1)))
               : Colors.transparent,
           child: Icon(
             widget.icon,
-            size: widget.icon == Icons.minimize ? 14 : 16,
+            size: 18,
             color: _isHovered && widget.isClose
                 ? Colors.white
                 : (widget.isDark ? Colors.grey[400] : AppColors.lightPrimary),
