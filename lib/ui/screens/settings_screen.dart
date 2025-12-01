@@ -15,14 +15,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _selectedModel = 'Qwen 3 14B';
+  String _selectedModel = 'Qwen2.5-7B';
   bool _isModelDropdownOpen = false;
 
   final List<String> _models = [
-    'Qwen 3 14B',
-    'GPT-4o',
-    'Claude 3.5 Sonnet',
-    'Gemini 1.5 Pro',
+    'Qwen2.5-0.5B',
+    'Qwen2.5-1B',
+    'Qwen2.5-3B',
+    'Qwen2.5-7B',
+    'Qwen3-8B',
+    'Qwen3-14B',
+    'Qwen3-30B-A3B',
   ];
 
   @override
