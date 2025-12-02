@@ -102,6 +102,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
         filePath: _selectedFilePath!,
         dictionaryDir: configProvider.dictionaryDir,
         modelName: configProvider.selectedModel,
+        targetLanguage: _targetLang,
         onUpdate: (status, progress) {
           if (mounted) {
             setState(() {

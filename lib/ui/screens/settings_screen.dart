@@ -17,7 +17,8 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   // String _selectedModel = 'Qwen2.5-7B'; // Removed local state
   bool _isModelDropdownOpen = false;
 
@@ -34,19 +35,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AIService _aiService = AIService();
   List<String> _installedModels = [];
   Map<String, double?> _downloadProgress = {};
+  bool _isLoadingModels = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkInstalledModels();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkInstalledModels();
+    }
+  }
+
   Future<void> _checkInstalledModels() async {
-    final models = await _aiService.getInstalledModels();
-    if (mounted) {
-      setState(() {
-        _installedModels = models;
-      });
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingModels = true;
+    });
+
+    try {
+      final models = await _aiService.getInstalledModels();
+      if (mounted) {
+        setState(() {
+          _installedModels = models;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking installed models: $e');
+      // Optionally show a snackbar or just fail silently
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingModels = false;
+        });
+      }
     }
   }
 
@@ -184,6 +217,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: FontAwesomeIcons.brain,
                 title: 'CẤU HÌNH AI',
                 isDark: widget.isDark,
+                onRefresh: _checkInstalledModels,
+                isLoading: _isLoadingModels,
               ),
               const SizedBox(height: 16),
               Container(
@@ -275,6 +310,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 .setSelectedModel(model);
                             _isModelDropdownOpen = false;
                           });
+
+                          // Silent preload: trigger model loading in background
+                          _aiService.preloadModel(model);
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -529,11 +567,15 @@ class _SectionHeader extends StatelessWidget {
   final IconData icon;
   final String title;
   final bool isDark;
+  final VoidCallback? onRefresh;
+  final bool isLoading;
 
   const _SectionHeader({
     required this.icon,
     required this.title,
     required this.isDark,
+    this.onRefresh,
+    this.isLoading = false,
   });
 
   @override
@@ -558,6 +600,33 @@ class _SectionHeader extends StatelessWidget {
                 isDark ? Colors.white.withOpacity(0.7) : AppColors.lightPrimary,
           ),
         ),
+        if (onRefresh != null) ...[
+          const SizedBox(width: 8),
+          if (isLoading)
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: isDark ? Colors.white : AppColors.lightPrimary,
+              ),
+            )
+          else
+            InkWell(
+              onTap: onRefresh,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: FaIcon(
+                  FontAwesomeIcons.rotateRight,
+                  size: 12,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : AppColors.lightPrimary,
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }

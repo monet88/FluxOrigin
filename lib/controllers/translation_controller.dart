@@ -17,6 +17,7 @@ class TranslationController {
     required String filePath,
     required String dictionaryDir,
     required String modelName,
+    required String targetLanguage,
     required Function(String status, double progress) onUpdate,
   }) async {
     final String fileName = path.basenameWithoutExtension(filePath);
@@ -43,8 +44,9 @@ class TranslationController {
       final String sample = TextProcessor.createSample(content);
 
       onUpdate("AI đang đọc thử để xác định thể loại...", 0.2);
+      final String genreKey = await _aiService.detectGenre(sample, modelName);
       final String systemPrompt =
-          await _aiService.detectGenre(sample, modelName);
+          _aiService.getSystemPrompt(genreKey, targetLanguage);
 
       onUpdate("AI đang tạo từ điển tên riêng...", 0.3);
       final String glossaryCsv =
@@ -106,7 +108,11 @@ class TranslationController {
       try {
         final String chunk = progress.rawChunks[i];
         final String translated = await _aiService.translateChunk(
-            chunk, progress.systemPrompt, progress.glossary, modelName);
+            chunk,
+            progress.systemPrompt,
+            progress.glossary,
+            modelName,
+            targetLanguage);
 
         progress.translatedChunks[i] = translated;
         progress.currentIndex = i + 1;

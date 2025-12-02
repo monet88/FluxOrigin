@@ -32,15 +32,28 @@ class AIService {
     final genre = response.trim().toUpperCase();
     // Basic validation to ensure we got a valid key, otherwise default to KHAC
     if (_prompts.containsKey(genre)) {
-      return _prompts[genre]!;
+      return genre;
     }
     // Try to find the keyword if the AI was chatty
     for (final key in _prompts.keys) {
       if (genre.contains(key)) {
-        return _prompts[key]!;
+        return key;
       }
     }
-    return _prompts["KHAC"]!;
+    return "KHAC";
+  }
+
+  String getSystemPrompt(String genre, String targetLanguage) {
+    if (targetLanguage == 'Tiếng Việt') {
+      return _prompts[genre] ?? _prompts['KHAC']!;
+    } else if (targetLanguage == 'Tiếng Anh') {
+      return "You are a professional translator. Translate the text into natural, fluent English. Pay attention to grammatical tense and subject-verb agreement. Avoid 'Chinglish' or 'Vietlish' phrasing.";
+    } else if (targetLanguage == 'Tiếng Trung') {
+      return "You are a professional translator. Translate the text into Standard Chinese (Simplified). Use appropriate idioms (Chengyu) where fitting.";
+    } else {
+      // Default fallback
+      return "You are a professional translator. Translate the text into $targetLanguage.";
+    }
   }
 
   Future<String> generateGlossary(String sample, String modelName) async {
@@ -48,7 +61,7 @@ class AIService {
       {
         "role": "user",
         "content":
-            "Hãy phân tích đoạn văn sau và liệt kê các Tên Riêng (Nhân vật, Địa danh, Môn phái, Chiêu thức) quan trọng nhất để làm Từ Điển dịch thuật.\n\nĐịnh dạng trả về: CSV (Original Name,Vietnamese Name)\nTuyệt đối KHÔNG thêm Header.\nNếu tên có dấu phẩy hoặc ký tự đặc biệt, hãy đặt trong dấu ngoặc kép.\n\nVí dụ:\nHarry Potter,Harry Potter\n\"Robert, Jr.\",Robert Con\nAzure Dragon Sect,Thanh Long Môn\nLi Feng,Lý Phong\n\nTuyệt đối không giải thích gì thêm.\n\nNội dung:\n$sample"
+            "Hãy phân tích đoạn văn sau và liệt kê các Tên Riêng (Nhân vật, Địa danh, Môn phái, Chiêu thức) quan trọng nhất để làm Từ Điển dịch thuật.\n\nYou MUST output the CSV with exactly two columns:\nColumn 1: The EXACT English term found in the text.\nColumn 2: The Vietnamese translation (Hán Việt preferred for names/sects).\n\nDo NOT put the Vietnamese meaning in the first column.\n\nExample format:\nHeavenly Sword Sect,Thiên Kiếm Tông\nYe Chen,Diệp Trần\n\"Robert, Jr.\",Robert Con\n\nTuyệt đối KHÔNG thêm Header. Tuyệt đối không giải thích gì thêm.\n\nNội dung:\n$sample"
       }
     ], options: {
       "num_predict": 3000
@@ -130,7 +143,7 @@ class AIService {
   }
 
   Future<String> translateChunk(String chunk, String systemPrompt,
-      String glossaryCsv, String modelName) async {
+      String glossaryCsv, String modelName, String targetLanguage) async {
     // 1. Adaptive Prompting Logic
     final isSmallModel = modelName.toLowerCase().contains("0.5b") ||
         modelName.toLowerCase().contains("1.5b");
@@ -139,11 +152,17 @@ class AIService {
     if (isSmallModel) {
       // Simple prompt for small models
       finalSystemPrompt =
-          "You are a professional translator. Translate the following text into Vietnamese. Output ONLY the translation. Do not repeat the input.";
+          "You are a professional translator. Translate the following text into $targetLanguage. Output ONLY the translation. Do not repeat the input.";
     } else {
-      // Advanced prompt for large models (keep existing logic)
-      finalSystemPrompt =
-          "$systemPrompt\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE. NO CHINESE CHARACTERS.";
+      // Advanced prompt for large models
+      if (targetLanguage == 'Tiếng Việt') {
+        finalSystemPrompt =
+            "$systemPrompt\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE. NO CHINESE CHARACTERS.";
+      } else {
+        // For other languages, just use the system prompt + standard instruction
+        finalSystemPrompt =
+            "$systemPrompt\n\nOUTPUT ONLY THE TRANSLATION. NO PREAMBLE.";
+      }
     }
 
     // Parse CSV to formatted string (Glossary)
@@ -190,7 +209,8 @@ class AIService {
       {"role": "system", "content": finalSystemPrompt},
       {
         "role": "user",
-        "content": "Dịch đoạn văn bản sau sang tiếng Việt:\n\n$chunk"
+        "content":
+            "Translate the following text into $targetLanguage:\n\n$chunk"
       }
     ], options: {
       "timeout":
@@ -318,6 +338,33 @@ class AIService {
     } catch (e) {
       print('Error pulling model: $e');
       return false;
+    }
+  }
+
+  /// Preload a model into memory silently (fire-and-forget)
+  /// Sends a minimal request to trigger model loading without generating text
+  Future<void> preloadModel(String modelName) async {
+    try {
+      // Convert display name to Ollama tag if needed
+      final String finalModel = modelName.toLowerCase().replaceAll('-', ':');
+
+      final body = {
+        "model": finalModel,
+        "messages":
+            [], // Empty messages list triggers loading without generation
+      };
+
+      await http.post(
+        Uri.parse(_baseUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      // Silent success - no need to check response
+      print('Model preload triggered: $finalModel');
+    } catch (e) {
+      // Silent failure - just log to console
+      print('Model preload failed: $e');
     }
   }
 }
