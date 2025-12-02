@@ -29,12 +29,13 @@ class TranslationController {
     // --- 1. INITIALIZATION OR RESUME ---
     if (progress != null) {
       onUpdate("Đã tìm thấy bản lưu cũ. Đang khôi phục tiến độ...", 0.0);
-      await Future.delayed(Duration(seconds: 1)); // UX delay
+      await Future.delayed(const Duration(seconds: 1)); // UX delay
     } else {
       onUpdate("Đang đọc file gốc...", 0.0);
       final File file = File(filePath);
-      if (!await file.exists())
+      if (!await file.exists()) {
         throw Exception("File không tồn tại: $filePath");
+      }
 
       final String content = await file.readAsString();
       final String fileName = path.basenameWithoutExtension(filePath);
@@ -82,7 +83,7 @@ class TranslationController {
       // Create output path in outputDir
       // Note: In new flow, we don't save automatically, but we keep this field
       // in TranslationProgress for compatibility or future use.
-      final String outputPath = "";
+      const String outputPath = "";
 
       progress = TranslationProgress(
         sourcePath: filePath,
@@ -98,8 +99,19 @@ class TranslationController {
       await progress.saveToFile(progressPath);
     }
 
-    // --- 2. TRANSLATION LOOP ---
+    // --- 2. TRANSLATION LOOP WITH CONTEXT AWARENESS ---
     final int total = progress.rawChunks.length;
+    String? previousContext;
+
+    // If resuming, extract context from the last translated chunk
+    if (progress.currentIndex > 0) {
+      final lastTranslated =
+          progress.translatedChunks[progress.currentIndex - 1];
+      if (lastTranslated != null && lastTranslated.isNotEmpty) {
+        previousContext =
+            TextProcessor.extractLastSentences(lastTranslated, maxLength: 200);
+      }
+    }
 
     for (int i = progress.currentIndex; i < total; i++) {
       final double percent = (i / total);
@@ -108,14 +120,22 @@ class TranslationController {
       try {
         final String chunk = progress.rawChunks[i];
         final String translated = await _aiService.translateChunk(
-            chunk,
-            progress.systemPrompt,
-            progress.glossary,
-            modelName,
-            targetLanguage);
+          chunk,
+          progress.systemPrompt,
+          progress.glossary,
+          modelName,
+          targetLanguage,
+          previousContext: previousContext,
+        );
 
         progress.translatedChunks[i] = translated;
         progress.currentIndex = i + 1;
+
+        // Update context for next iteration
+        if (translated.isNotEmpty) {
+          previousContext =
+              TextProcessor.extractLastSentences(translated, maxLength: 200);
+        }
 
         // CRITICAL: Save after every chunk
         await progress.saveToFile(progressPath);

@@ -66,8 +66,9 @@ class _PathSetupModalState extends State<PathSetupModal> {
       // Create subdirectories
       final dictionaryDir = Directory(path.join(projectPath, 'dictionary'));
 
-      if (!await dictionaryDir.exists())
+      if (!await dictionaryDir.exists()) {
         await dictionaryDir.create(recursive: true);
+      }
 
       await context.read<ConfigProvider>().setProjectPath(projectPath);
 

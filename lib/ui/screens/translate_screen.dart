@@ -72,7 +72,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
     if (!configProvider.isConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
+          content: const Text(
             'Vui lòng cấu hình thư mục dự án trước!',
             style: TextStyle(color: AppColors.lightPrimary),
           ),
@@ -130,7 +130,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
           SnackBar(
             content: Text(
               'Lỗi: $e',
-              style: TextStyle(color: AppColors.lightPrimary),
+              style: const TextStyle(color: AppColors.lightPrimary),
             ),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -171,7 +171,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
             SnackBar(
               content: Text(
                 'Đã lưu file tại: $outputFile',
-                style: TextStyle(color: AppColors.lightPrimary),
+                style: const TextStyle(color: AppColors.lightPrimary),
               ),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -191,7 +191,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
             SnackBar(
               content: Text(
                 'Lỗi khi lưu file: $e',
-                style: TextStyle(color: AppColors.lightPrimary),
+                style: const TextStyle(color: AppColors.lightPrimary),
               ),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(

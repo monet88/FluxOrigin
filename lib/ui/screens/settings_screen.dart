@@ -34,7 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   final AIService _aiService = AIService();
   List<String> _installedModels = [];
-  Map<String, double?> _downloadProgress = {};
+  final Map<String, double?> _downloadProgress = {};
   bool _isLoadingModels = false;
 
   @override

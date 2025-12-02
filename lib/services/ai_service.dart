@@ -93,7 +93,9 @@ class AIService {
       // So only reject if it looks like a header (no comma, no dash, just text ending in colon)
       if (trimmed.endsWith(':') &&
           !trimmed.contains(',') &&
-          !trimmed.contains('-')) continue;
+          !trimmed.contains('-')) {
+        continue;
+      }
 
       // Robust parsing: Try comma, then colon, then dash
       String? original;
@@ -142,8 +144,14 @@ class AIService {
     return cleanBuffer.toString().trim();
   }
 
-  Future<String> translateChunk(String chunk, String systemPrompt,
-      String glossaryCsv, String modelName, String targetLanguage) async {
+  Future<String> translateChunk(
+    String chunk,
+    String systemPrompt,
+    String glossaryCsv,
+    String modelName,
+    String targetLanguage, {
+    String? previousContext,
+  }) async {
     // 1. Adaptive Prompting Logic
     final isSmallModel = modelName.toLowerCase().contains("0.5b") ||
         modelName.toLowerCase().contains("1.5b");
@@ -159,20 +167,36 @@ CRITICAL OUTPUT RULES:
 """;
     }
 
+    // Build context instruction if previous context is provided
+    String contextInstruction = "";
+    if (previousContext != null && previousContext.isNotEmpty) {
+      contextInstruction = """
+### CONTEXT FROM PREVIOUS SECTION:
+The following is the ending of the previous translated section for continuity reference:
+\"$previousContext\"
+
+Use this context to maintain narrative flow, consistent pronouns, and proper subject references. Do NOT re-translate the context - only translate the new text below.
+
+""";
+    }
+
     String finalSystemPrompt;
     if (isSmallModel) {
       // Simple prompt for small models
       finalSystemPrompt =
           "You are a professional translator. Translate the following text into $targetLanguage. Output ONLY the translation. Do not repeat the input.\n$constraints";
+      if (contextInstruction.isNotEmpty) {
+        finalSystemPrompt += "\n$contextInstruction";
+      }
     } else {
       // Advanced prompt for large models
       if (targetLanguage == 'Tiếng Việt') {
         finalSystemPrompt =
-            "$systemPrompt\n\n$constraints\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE.";
+            "$systemPrompt\n\n$constraints\n\n$contextInstruction### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE.";
       } else {
         // For other languages, just use the system prompt + standard instruction
         finalSystemPrompt =
-            "$systemPrompt\n\nOUTPUT ONLY THE TRANSLATION. NO PREAMBLE.";
+            "$systemPrompt\n\n$contextInstruction\nOUTPUT ONLY THE TRANSLATION. NO PREAMBLE.";
       }
     }
 
@@ -228,7 +252,31 @@ CRITICAL OUTPUT RULES:
           28800000 // 8 hours, though http client timeout handles this mostly
     });
 
-    return _cleanResponse(rawResponse, targetLanguage);
+    final cleaned = _cleanResponse(rawResponse, targetLanguage);
+
+    // Post-processing: Check for garbage output (only punctuation/symbols)
+    if (_isGarbageOutput(cleaned)) {
+      return "";
+    }
+
+    return cleaned;
+  }
+
+  /// Checks if output is garbage (only punctuation, symbols, or very short)
+  bool _isGarbageOutput(String text) {
+    if (text.isEmpty) return true;
+
+    // Remove all punctuation, symbols, and whitespace
+    final contentOnly = text.replaceAll(
+        RegExp(r'[\s\p{P}\p{S}]+', unicode: true), '');
+
+    // If nothing meaningful remains, it's garbage
+    if (contentOnly.isEmpty) return true;
+
+    // If content is too short relative to original (likely hallucination remnants)
+    if (contentOnly.length < 3 && text.length > 10) return true;
+
+    return false;
   }
 
   String _cleanResponse(String raw, String targetLang) {
@@ -265,6 +313,21 @@ CRITICAL OUTPUT RULES:
       clean = clean.replaceAll(RegExp(r'[\u4e00-\u9fa5]'), '');
 
       // 3. Cleanup double spaces
+      while (clean.contains('  ')) {
+        clean = clean.replaceAll('  ', ' ');
+      }
+
+      // 4. Clean up hanging punctuation left after Chinese removal
+      // Remove sequences of punctuation with spaces like ", . , : "
+      clean = clean.replaceAll(RegExp(r'(\s*[,.:;]\s*){2,}'), ' ');
+
+      // Remove leading punctuation on lines (except quotes which may be dialogue)
+      clean = clean.replaceAll(RegExp(r'^\s*[,.:;]+\s*', multiLine: true), '');
+
+      // Remove trailing orphan punctuation
+      clean = clean.replaceAll(RegExp(r'\s+[,.:;]+\s*$', multiLine: true), '');
+
+      // Final cleanup of multiple spaces
       while (clean.contains('  ')) {
         clean = clean.replaceAll('  ', ' ');
       }
