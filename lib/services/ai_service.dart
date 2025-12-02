@@ -18,7 +18,7 @@ class AIService {
   };
 
   Future<String> detectGenre(String sample, String modelName) async {
-    final response = await _chatCompletion(
+    final response = await chatCompletion(
       modelName: modelName,
       messages: [
         {
@@ -44,7 +44,7 @@ class AIService {
   }
 
   Future<String> generateGlossary(String sample, String modelName) async {
-    final response = await _chatCompletion(modelName: modelName, messages: [
+    final response = await chatCompletion(modelName: modelName, messages: [
       {
         "role": "user",
         "content":
@@ -53,12 +53,100 @@ class AIService {
     ], options: {
       "num_predict": 3000
     });
-    return response.trim();
+
+    // Sanitize the output
+    final List<String> lines = response.split('\n');
+    final StringBuffer cleanBuffer = StringBuffer();
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+
+      // Reject conversational fillers
+      final lower = trimmed.toLowerCase();
+      if (lower.startsWith("sure") ||
+          lower.startsWith("here") ||
+          lower.startsWith("certainly") ||
+          lower.startsWith("okay") ||
+          lower.startsWith("note") ||
+          lower.startsWith("of course") ||
+          lower.contains("i can help") ||
+          lower.contains("ai language model")) {
+        continue;
+      }
+
+      // Reject lines ending with colon (often headers like "Here is the list:")
+      // BUT we want to be careful not to reject "Term: Definition" if that's the format
+      // So only reject if it looks like a header (no comma, no dash, just text ending in colon)
+      if (trimmed.endsWith(':') &&
+          !trimmed.contains(',') &&
+          !trimmed.contains('-')) continue;
+
+      // Robust parsing: Try comma, then colon, then dash
+      String? original;
+      String? vietnamese;
+      String? definition;
+
+      if (trimmed.contains(',')) {
+        // CSV format
+        final parts = trimmed.split(',');
+        if (parts.length >= 2) {
+          original = parts[0].trim();
+          vietnamese = parts[1].trim();
+          if (parts.length > 2) definition = parts.sublist(2).join(',').trim();
+        }
+      } else if (trimmed.contains(':')) {
+        // "Term: Definition" format
+        final parts = trimmed.split(':');
+        if (parts.length >= 2) {
+          original = parts[0].trim();
+          vietnamese = parts[1].trim();
+          if (parts.length > 2) definition = parts.sublist(2).join(':').trim();
+        }
+      } else if (trimmed.contains('-')) {
+        // "Term - Definition" format
+        final parts = trimmed.split('-');
+        if (parts.length >= 2) {
+          original = parts[0].trim();
+          vietnamese = parts[1].trim();
+          if (parts.length > 2) definition = parts.sublist(2).join('-').trim();
+        }
+      }
+
+      if (original != null &&
+          vietnamese != null &&
+          original.isNotEmpty &&
+          vietnamese.isNotEmpty) {
+        // Basic validation: Definition shouldn't be too long (likely a sentence)
+        if (vietnamese.length > 100) continue;
+
+        // Re-construct as CSV for consistency
+        cleanBuffer.writeln(
+            '"$original","$vietnamese"${definition != null ? ',"$definition"' : ''}');
+      }
+    }
+
+    return cleanBuffer.toString().trim();
   }
 
   Future<String> translateChunk(String chunk, String systemPrompt,
       String glossaryCsv, String modelName) async {
-    // Parse CSV to formatted string
+    // 1. Adaptive Prompting Logic
+    final isSmallModel = modelName.toLowerCase().contains("0.5b") ||
+        modelName.toLowerCase().contains("1.5b");
+
+    String finalSystemPrompt;
+    if (isSmallModel) {
+      // Simple prompt for small models
+      finalSystemPrompt =
+          "You are a professional translator. Translate the following text into Vietnamese. Output ONLY the translation. Do not repeat the input.";
+    } else {
+      // Advanced prompt for large models (keep existing logic)
+      finalSystemPrompt =
+          "$systemPrompt\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE. NO CHINESE CHARACTERS.";
+    }
+
+    // Parse CSV to formatted string (Glossary)
     String formattedGlossary = "";
     try {
       final List<List<dynamic>> rows = const CsvToListConverter().convert(
@@ -75,10 +163,15 @@ class AIService {
           final definition = row.length > 2 ? row[2].toString().trim() : "";
 
           if (original.isNotEmpty && vietnamese.isNotEmpty) {
-            buffer.write("- Term: $original\n");
-            buffer.write("  Vietnamese: $vietnamese\n");
-            if (definition.isNotEmpty) {
-              buffer.write("  Context/Definition: $definition\n");
+            // Simplified glossary format for small models to avoid confusion
+            if (isSmallModel) {
+              buffer.write("$original: $vietnamese\n");
+            } else {
+              buffer.write("- Term: $original\n");
+              buffer.write("  Vietnamese: $vietnamese\n");
+              if (definition.isNotEmpty) {
+                buffer.write("  Context/Definition: $definition\n");
+              }
             }
           }
         }
@@ -88,11 +181,13 @@ class AIService {
       formattedGlossary = glossaryCsv; // Fallback
     }
 
-    final fullSystemPrompt =
-        "$systemPrompt\n\n### BẮT BUỘC TUÂN THỦ TỪ ĐIỂN (GLOSSARY):\n$formattedGlossary\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.";
+    // Append Glossary to System Prompt
+    if (formattedGlossary.isNotEmpty) {
+      finalSystemPrompt += "\n\n### GLOSSARY:\n$formattedGlossary";
+    }
 
-    return await _chatCompletion(modelName: modelName, messages: [
-      {"role": "system", "content": fullSystemPrompt},
+    final rawResponse = await chatCompletion(modelName: modelName, messages: [
+      {"role": "system", "content": finalSystemPrompt},
       {
         "role": "user",
         "content": "Dịch đoạn văn bản sau sang tiếng Việt:\n\n$chunk"
@@ -101,9 +196,31 @@ class AIService {
       "timeout":
           28800000 // 8 hours, though http client timeout handles this mostly
     });
+
+    // Post-processing to clean output
+    String cleanResponse = rawResponse.trim();
+
+    // Strip quotes if wrapped
+    if (cleanResponse.startsWith('"') && cleanResponse.endsWith('"')) {
+      cleanResponse = cleanResponse.substring(1, cleanResponse.length - 1);
+    } else if (cleanResponse.startsWith("'") && cleanResponse.endsWith("'")) {
+      cleanResponse = cleanResponse.substring(1, cleanResponse.length - 1);
+    }
+
+    // Strip prompt repetition (simple heuristic)
+    final lines = cleanResponse.split('\n');
+    if (lines.isNotEmpty) {
+      final firstLine = lines.first.toLowerCase();
+      if (firstLine.contains("dịch đoạn văn bản") ||
+          firstLine.contains("translate the following")) {
+        cleanResponse = lines.sublist(1).join('\n').trim();
+      }
+    }
+
+    return cleanResponse;
   }
 
-  Future<String> _chatCompletion(
+  Future<String> chatCompletion(
       {required String modelName,
       required List<Map<String, String>> messages,
       Map<String, dynamic>? options}) async {

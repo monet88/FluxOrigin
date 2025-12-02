@@ -149,11 +149,17 @@ class TranslationController {
     required File existingFile,
   }) async {
     // Parse AI-generated CSV
-    final List<List<dynamic>> aiRows = const CsvToListConverter().convert(
-      aiGeneratedCsv,
-      eol: '\n',
-      shouldParseNumbers: false,
-    );
+    List<List<dynamic>> aiRows = [];
+    try {
+      aiRows = const CsvToListConverter().convert(
+        aiGeneratedCsv,
+        eol: '\n',
+        shouldParseNumbers: false,
+      );
+    } catch (e) {
+      print("Error parsing AI glossary CSV: $e");
+      // Treat as empty if parsing fails
+    }
 
     // Create a map from AI data: Original Name -> Vietnamese Name
     final Map<String, String> aiMap = {};
@@ -169,13 +175,20 @@ class TranslationController {
 
     // If existing file exists, load and preserve user edits
     if (await existingFile.exists()) {
-      final String existingContent = await existingFile.readAsString();
-      final List<List<dynamic>> existingRows =
-          const CsvToListConverter().convert(
-        existingContent,
-        eol: '\n',
-        shouldParseNumbers: false,
-      );
+      List<List<dynamic>> existingRows = [];
+      try {
+        final String existingContent = await existingFile.readAsString();
+        existingRows = const CsvToListConverter().convert(
+          existingContent,
+          eol: '\n',
+          shouldParseNumbers: false,
+        );
+      } catch (e) {
+        print("Error parsing existing glossary CSV: $e");
+        // If existing file is corrupt, we might want to backup and start fresh,
+        // or just proceed with AI map. For now, let's proceed with AI map
+        // but try to preserve what we can if it was partial.
+      }
 
       // User edits take priority
       final Map<String, String> userMap = {};
@@ -214,51 +227,58 @@ class TranslationController {
   }) async {
     if (!await glossaryFile.exists()) return "";
 
-    final String content = await glossaryFile.readAsString();
-    List<List<dynamic>> rows = const CsvToListConverter().convert(
-      content,
-      eol: '\n',
-      shouldParseNumbers: false,
-    );
+    try {
+      final String content = await glossaryFile.readAsString();
+      List<List<dynamic>> rows = const CsvToListConverter().convert(
+        content,
+        eol: '\n',
+        shouldParseNumbers: false,
+      );
 
-    bool isModified = false;
-    final int totalRows = rows.length;
+      bool isModified = false;
+      final int totalRows = rows.length;
 
-    for (int i = 0; i < totalRows; i++) {
-      final row = rows[i];
-      if (row.isEmpty) continue;
+      for (int i = 0; i < totalRows; i++) {
+        final row = rows[i];
+        if (row.isEmpty) continue;
 
-      // Ensure row has at least 3 columns
-      while (row.length < 3) {
-        row.add(""); // Add empty definition
-        isModified = true;
-      }
-
-      final String original = row[0].toString().trim();
-      // final String vietnamese = row[1].toString().trim();
-      String definition = row[2].toString().trim();
-
-      // If definition is empty, lookup
-      if (definition.isEmpty && original.isNotEmpty) {
-        onUpdate("Đang tra cứu: $original...", 0.35 + (0.05 * (i / totalRows)));
-
-        final String? result = await _webSearchService.lookupTerm(original);
-        if (result != null) {
-          row[2] = result;
+        // Ensure row has at least 3 columns
+        while (row.length < 3) {
+          row.add(""); // Add empty definition
           isModified = true;
         }
 
-        // Delay to avoid rate limiting
-        await Future.delayed(const Duration(milliseconds: 500));
+        final String original = row[0].toString().trim();
+        // final String vietnamese = row[1].toString().trim();
+        String definition = row[2].toString().trim();
+
+        // If definition is empty, lookup
+        if (definition.isEmpty && original.isNotEmpty) {
+          onUpdate(
+              "Đang tra cứu: $original...", 0.35 + (0.05 * (i / totalRows)));
+
+          final String? result = await _webSearchService.lookupTerm(original);
+          if (result != null) {
+            row[2] = result;
+            isModified = true;
+          }
+
+          // Delay to avoid rate limiting
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       }
+
+      final String newCsv = const ListToCsvConverter().convert(rows, eol: '\n');
+
+      if (isModified) {
+        await glossaryFile.writeAsString(newCsv);
+      }
+
+      return newCsv;
+    } catch (e) {
+      print("Error enriching glossary: $e");
+      // Return original content if enrichment fails to avoid data loss
+      return await glossaryFile.readAsString();
     }
-
-    final String newCsv = const ListToCsvConverter().convert(rows, eol: '\n');
-
-    if (isModified) {
-      await glossaryFile.writeAsString(newCsv);
-    }
-
-    return newCsv;
   }
 }
