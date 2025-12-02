@@ -148,16 +148,27 @@ class AIService {
     final isSmallModel = modelName.toLowerCase().contains("0.5b") ||
         modelName.toLowerCase().contains("1.5b");
 
+    String constraints = "";
+    if (targetLanguage == 'Tiếng Việt') {
+      constraints = """
+CRITICAL OUTPUT RULES:
+1. **STRATEGY:** Use Hán-Việt (Sino-Vietnamese) for all Wuxia/Cultivation terms.
+2. **FORMAT:** If a term is ambiguous, write the Vietnamese first, followed by the original in brackets. Example: 'Hắc Thiết Kiếm (黑铁剑)'.
+3. **NO CHINESE CHARACTERS ALONE:** Do not output Chinese characters without their Vietnamese translation.
+4. **NO TRANSLATOR NOTES:** Do not add footnotes or explanations.
+""";
+    }
+
     String finalSystemPrompt;
     if (isSmallModel) {
       // Simple prompt for small models
       finalSystemPrompt =
-          "You are a professional translator. Translate the following text into $targetLanguage. Output ONLY the translation. Do not repeat the input.";
+          "You are a professional translator. Translate the following text into $targetLanguage. Output ONLY the translation. Do not repeat the input.\n$constraints";
     } else {
       // Advanced prompt for large models
       if (targetLanguage == 'Tiếng Việt') {
         finalSystemPrompt =
-            "$systemPrompt\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE. NO CHINESE CHARACTERS.";
+            "$systemPrompt\n\n$constraints\n\n### YÊU CẦU DỊCH THUẬT NÂNG CAO:\n1. Dịch CHI TIẾT từng câu, tuyệt đối KHÔNG được tóm tắt hay bỏ sót ý.\n2. Giữ nguyên sắc thái biểu cảm, các thán từ, mô tả nội tâm của nhân vật.\n3. Nếu gặp thơ ca hoặc câu đối, hãy dịch sao cho vần điệu hoặc giữ nguyên Hán Việt nếu cần.\n4. Văn phong phải trôi chảy, tự nhiên như người bản xứ viết.\n\nOUTPUT ONLY THE VIETNAMESE TRANSLATION. NO PREAMBLE.";
       } else {
         // For other languages, just use the system prompt + standard instruction
         finalSystemPrompt =
@@ -217,27 +228,49 @@ class AIService {
           28800000 // 8 hours, though http client timeout handles this mostly
     });
 
-    // Post-processing to clean output
-    String cleanResponse = rawResponse.trim();
+    return _cleanResponse(rawResponse, targetLanguage);
+  }
 
-    // Strip quotes if wrapped
-    if (cleanResponse.startsWith('"') && cleanResponse.endsWith('"')) {
-      cleanResponse = cleanResponse.substring(1, cleanResponse.length - 1);
-    } else if (cleanResponse.startsWith("'") && cleanResponse.endsWith("'")) {
-      cleanResponse = cleanResponse.substring(1, cleanResponse.length - 1);
+  String _cleanResponse(String raw, String targetLang) {
+    if (targetLang == 'Tiếng Trung') {
+      return raw.trim();
+    }
+
+    String clean = raw.trim();
+
+    // Standard cleaning (quotes)
+    if (clean.startsWith('"') && clean.endsWith('"')) {
+      clean = clean.substring(1, clean.length - 1);
+    } else if (clean.startsWith("'") && clean.endsWith("'")) {
+      clean = clean.substring(1, clean.length - 1);
     }
 
     // Strip prompt repetition (simple heuristic)
-    final lines = cleanResponse.split('\n');
+    final lines = clean.split('\n');
     if (lines.isNotEmpty) {
       final firstLine = lines.first.toLowerCase();
       if (firstLine.contains("dịch đoạn văn bản") ||
           firstLine.contains("translate the following")) {
-        cleanResponse = lines.sublist(1).join('\n').trim();
+        clean = lines.sublist(1).join('\n').trim();
       }
     }
 
-    return cleanResponse;
+    if (targetLang == 'Tiếng Việt') {
+      // Smart Cleaning for Vietnamese
+      // 1. Remove parenthesized Chinese: (黑铁剑) or [黑铁剑]
+      clean = clean.replaceAll(RegExp(r'\([^\)]*[\u4e00-\u9fa5]+[^\)]*\)'), '');
+      clean = clean.replaceAll(RegExp(r'\[[^\]]*[\u4e00-\u9fa5]+[^\]]*\]'), '');
+
+      // 2. Remove loose Chinese characters
+      clean = clean.replaceAll(RegExp(r'[\u4e00-\u9fa5]'), '');
+
+      // 3. Cleanup double spaces
+      while (clean.contains('  ')) {
+        clean = clean.replaceAll('  ', ' ');
+      }
+    }
+
+    return clean.trim();
   }
 
   Future<String> chatCompletion(
