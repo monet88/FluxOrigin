@@ -163,6 +163,12 @@ class AppStrings {
       'status_completed': 'Dịch hoàn tất!',
       'status_error': 'Lỗi khi dịch đoạn',
       'report_inappropriate_content': 'Báo cáo nội dung không phù hợp',
+      // Ollama Connection Error Dialog
+      'ollama_connection_error_title': 'Lỗi kết nối',
+      'ollama_connection_error_body':
+          'Không thể kết nối tới Ollama. Vui lòng kiểm tra:\n• Ollama đã được cài đặt chưa?\n• Ollama đang chạy chưa?',
+      'check_settings_hint': 'Mở Cài đặt để kiểm tra cấu hình',
+      'ok_button': 'OK',
     },
     'en': {
       'settings_title': 'Settings',
@@ -327,6 +333,12 @@ class AppStrings {
       'status_completed': 'Translation completed!',
       'status_error': 'Error translating chunk',
       'report_inappropriate_content': 'Report inappropriate content',
+      // Ollama Connection Error Dialog
+      'ollama_connection_error_title': 'Connection Error',
+      'ollama_connection_error_body':
+          'Cannot connect to Ollama. Please check:\n• Is Ollama installed?\n• Is Ollama running?',
+      'check_settings_hint': 'Open Settings to check configuration',
+      'ok_button': 'OK',
     },
   };
 

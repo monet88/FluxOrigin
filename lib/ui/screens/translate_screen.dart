@@ -13,6 +13,7 @@ import '../../controllers/translation_controller.dart';
 import '../../services/ai_service.dart';
 import '../theme/config_provider.dart';
 import '../../utils/app_strings.dart';
+import '../widgets/ollama_connection_dialog.dart';
 
 enum TranslationState { idle, fileSelected, processing, finished }
 
@@ -153,6 +154,29 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
     if (_selectedFilePath == null) return;
 
+    // Pre-flight connection check
+    final aiService = AIService();
+    aiService.setBaseUrl(configProvider.currentAiUrl);
+    aiService.setProviderType(
+      configProvider.aiProvider == AIProvider.lmStudio
+          ? AIProviderType.lmStudio
+          : AIProviderType.ollama,
+    );
+
+    final (connected, _, __) = await aiService.checkConnection();
+    if (!connected) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => OllamaConnectionDialog(
+            isDark: widget.isDark,
+            lang: lang,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _currentState = TranslationState.processing;
       _progress = resume ? _existingProgressPercent : 0.0;
@@ -230,28 +254,46 @@ class _TranslateScreenState extends State<TranslateScreen> {
     } catch (e) {
       if (mounted) {
         await _checkExistingProgress();
+        if (!mounted) return;
+
         final lang = context.read<ConfigProvider>().appLanguage;
         setState(() {
           _currentState = TranslationState.fileSelected; // Go back to selected
           _statusMessage = "${AppStrings.get(lang, 'error_prefix')}$e";
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${AppStrings.get(lang, 'error_prefix')}$e',
-              style: const TextStyle(color: AppColors.lightPrimary),
+
+        // Check if it's a connection error and show custom dialog
+        final errorStr = e.toString().toLowerCase();
+        if (errorStr.contains('failed to connect') ||
+            errorStr.contains('connection') ||
+            errorStr.contains('socket')) {
+          showDialog(
+            context: context,
+            builder: (ctx) => OllamaConnectionDialog(
+              isDark: widget.isDark,
+              lang: lang,
             ),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+          );
+        } else {
+          // Show SnackBar for other errors (non-connection related)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${AppStrings.get(lang, 'error_prefix')}$e',
+                style: const TextStyle(color: AppColors.lightPrimary),
+              ),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+              ),
+              backgroundColor:
+                  widget.isDark ? AppColors.darkSurface : Colors.white,
+              margin: const EdgeInsets.all(16),
+              elevation: 6,
             ),
-            backgroundColor:
-                widget.isDark ? AppColors.darkSurface : Colors.white,
-            margin: const EdgeInsets.all(16),
-            elevation: 6,
-          ),
-        );
+          );
+        }
       }
     }
   }
