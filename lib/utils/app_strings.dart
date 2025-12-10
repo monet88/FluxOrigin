@@ -162,6 +162,7 @@ class AppStrings {
       'status_merging': 'Đang ghép file kết quả...',
       'status_completed': 'Dịch hoàn tất!',
       'status_error': 'Lỗi khi dịch đoạn',
+      'report_inappropriate_content': 'Báo cáo nội dung không phù hợp',
     },
     'en': {
       'settings_title': 'Settings',
@@ -325,6 +326,7 @@ class AppStrings {
       'status_merging': 'Merging output files...',
       'status_completed': 'Translation completed!',
       'status_error': 'Error translating chunk',
+      'report_inappropriate_content': 'Report inappropriate content',
     },
   };
 
