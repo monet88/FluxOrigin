@@ -12,6 +12,19 @@
 
 ---
 
+## 📚 Documentation
+
+For detailed technical documentation, see the [`docs/`](./docs/) directory:
+
+| Document | Description |
+|----------|-------------|
+| [Project Overview & PDR](./docs/project-overview-pdr.md) | Vision, requirements, and roadmap |
+| [System Architecture](./docs/system-architecture.md) | Architecture diagrams and data flow |
+| [Codebase Summary](./docs/codebase-summary.md) | File structure and module overview |
+| [Code Standards](./docs/code-standards.md) | Coding conventions and best practices |
+
+---
+
 ## 🌟 Tính Năng Nổi Bật
 
 So với phiên bản n8n cũ, FluxOrigin mang lại những cải tiến vượt bậc:
