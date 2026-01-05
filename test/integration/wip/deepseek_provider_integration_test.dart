@@ -20,18 +20,21 @@ import 'package:http/http.dart' as http;
 /// Test configuration
 ///
 /// VCR mode is controlled by command-line arguments.
-VCRMode get _vcrMode {
+bool get _isRecordMode {
   final args = Platform.executableArguments;
-  if (args.contains('--record')) return VCRMode.record;
-  if (args.contains('--live')) return VCRMode.bypass;
-  return VCRMode.replay; // Default
+  return args.contains('--record');
+}
+
+bool get _isLiveMode {
+  final args = Platform.executableArguments;
+  return args.contains('--live');
 }
 
 /// Get API key from environment
 ///
 /// Required for record and live modes. Returns a dummy key for replay mode.
 String _getApiKey() {
-  if (_vcrMode == VCRMode.replay) {
+  if (!_isRecordMode && !_isLiveMode) {
     return 'sk-test-key-for-replay';
   }
   final key = Platform.environment['DEEPSEEK_API_KEY'];
@@ -45,11 +48,12 @@ String _getApiKey() {
 }
 
 void main() {
+  final mode = _isRecordMode ? 'RECORD' : _isLiveMode ? 'LIVE' : 'REPLAY';
   print('''
 ╔══════════════════════════════════════════════════════════════╗
 ║              DeepSeek Provider Integration Tests              ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Mode: ${_vcrMode.name.padRight(50)}║
+║  Mode: ${mode.padRight(50)}║
 ╚══════════════════════════════════════════════════════════════╝
 ''');
 
@@ -57,7 +61,7 @@ void main() {
     late DeepSeekProvider provider;
     late VCR vcr;
     late http.Client vcrClient;
-    static const String cassettesDir = 'test/integration/fixtures/cassettes';
+    const String cassettesDir = 'test/integration/fixtures/cassettes';
 
     setUpAll(() {
       final censors = Censors()
@@ -72,27 +76,23 @@ void main() {
       vcr = VCR(advancedOptions: advancedOptions);
     });
 
+    setUp(() {
+      // Set VCR mode before each test
+      if (_isRecordMode) {
+        vcr.record();
+      } else if (_isLiveMode) {
+        vcr.record(); // Live mode still records, but makes real calls
+      } else {
+        vcr.replay();
+      }
+    });
+
     group('testConnection', () {
       late Cassette cassette;
 
       setUp(() {
         cassette = Cassette(cassettesDir, 'deepseek_test_connection');
         vcr.insert(cassette);
-
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
 
         vcrClient = vcr.client;
         provider = DeepSeekProvider();
@@ -119,21 +119,6 @@ void main() {
       setUp(() {
         cassette = Cassette(cassettesDir, 'deepseek_chat');
         vcr.insert(cassette);
-
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
 
         vcrClient = vcr.client;
         provider = DeepSeekProvider();
@@ -165,21 +150,6 @@ void main() {
       setUp(() {
         cassette = Cassette(cassettesDir, 'deepseek_chat_stream');
         vcr.insert(cassette);
-
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
 
         vcrClient = vcr.client;
         provider = DeepSeekProvider();

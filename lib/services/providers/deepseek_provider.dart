@@ -31,6 +31,9 @@ class DeepSeekProvider implements AIProvider {
   /// API key for Bearer token authentication (required)
   String? _apiKey;
 
+  /// Optional HTTP client for testing (e.g., VCR recording/replay)
+  http.Client? _testClient;
+
   /// Timeout constants (as per requirements)
   static const Duration _testTimeout = Duration(seconds: 5);
   static const Duration _defaultChatTimeout = Duration(seconds: 60);
@@ -42,6 +45,19 @@ class DeepSeekProvider implements AIProvider {
     _apiKey = apiKey;
   }
 
+  /// Set a custom HTTP client for testing
+  ///
+  /// Allows injecting a VCR client for recording/replay without modifying
+  /// the core provider logic.
+  void setHttpClient(http.Client client) {
+    _testClient = client;
+  }
+
+  /// Get the HTTP client to use for requests
+  ///
+  /// Returns the test client if set, otherwise creates a default client.
+  http.Client get _client => _testClient ?? http.Client();
+
   @override
   Future<AIProviderError?> testConnection() async {
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -49,7 +65,7 @@ class DeepSeekProvider implements AIProvider {
     }
 
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$_baseUrl/v1/models'),
             headers: _buildHeaders(),
@@ -113,7 +129,7 @@ class DeepSeekProvider implements AIProvider {
         ...?options,
       };
 
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$_baseUrl/v1/chat/completions'),
             headers: _buildHeaders(),
@@ -179,7 +195,7 @@ class DeepSeekProvider implements AIProvider {
       request.headers.addAll(_buildHeaders());
       request.sink.add(utf8.encode(jsonEncode(requestBody)));
 
-      final responseFuture = http.Client().send(request);
+      final responseFuture = _client.send(request);
       final streamedResponse = await responseFuture
           .timeout(timeout ?? _defaultChatStreamTimeout);
 

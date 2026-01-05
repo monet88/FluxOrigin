@@ -20,18 +20,21 @@ import 'package:http/http.dart' as http;
 /// Test configuration
 ///
 /// VCR mode is controlled by command-line arguments.
-VCRMode get _vcrMode {
+bool get _isRecordMode {
   final args = Platform.executableArguments;
-  if (args.contains('--record')) return VCRMode.record;
-  if (args.contains('--live')) return VCRMode.bypass;
-  return VCRMode.replay; // Default
+  return args.contains('--record');
+}
+
+bool get _isLiveMode {
+  final args = Platform.executableArguments;
+  return args.contains('--live');
 }
 
 /// Get API key from environment
 ///
 /// Required for record and live modes. Returns a dummy key for replay mode.
 String _getApiKey() {
-  if (_vcrMode == VCRMode.replay) {
+  if (!_isRecordMode && !_isLiveMode) {
     return 'sk-test-key-for-replay'; // Dummy key for replay
   }
   final key = Platform.environment['OPENAI_API_KEY'];
@@ -49,11 +52,12 @@ String _getApiKey() {
 /// Wraps test functions with VCR cassette management.
 void main() {
   // Print usage information
+  final mode = _isRecordMode ? 'RECORD' : _isLiveMode ? 'LIVE' : 'REPLAY';
   print('''
 ╔══════════════════════════════════════════════════════════════╗
 ║              OpenAI Provider Integration Tests                ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Mode: ${_vcrMode.name.padRight(50)}║
+║  Mode: ${mode.padRight(50)}║
 ╚══════════════════════════════════════════════════════════════╝
 ''');
 
@@ -61,7 +65,8 @@ void main() {
     late OpenAIProvider provider;
     late VCR vcr;
     late http.Client vcrClient;
-    static const String cassettesDir = 'test/integration/fixtures/cassettes';
+    // Cassettes directory for recorded HTTP interactions
+    const String cassettesDir = 'test/integration/fixtures/cassettes';
 
     setUpAll(() {
       // Create VCR instance with censors for sensitive data
@@ -77,28 +82,23 @@ void main() {
       vcr = VCR(advancedOptions: advancedOptions);
     });
 
+    setUp(() {
+      // Set VCR mode before each test
+      if (_isRecordMode) {
+        vcr.record();
+      } else if (_isLiveMode) {
+        vcr.record(); // Live mode still records, but makes real calls
+      } else {
+        vcr.replay();
+      }
+    });
+
     group('testConnection', () {
       late Cassette cassette;
 
       setUp(() {
         cassette = Cassette(cassettesDir, 'openai_test_connection');
         vcr.insert(cassette);
-
-        // Set VCR mode
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
 
         // Create VCR client and inject it into provider
         vcrClient = vcr.client;
@@ -123,7 +123,7 @@ void main() {
       test('returns authenticationFailed with invalid API key', () async {
         // Only run this test in record or live mode
         // In replay mode, we use a dummy key which will fail auth
-        if (_vcrMode == VCRMode.replay) {
+        if (!_isRecordMode && !_isLiveMode) {
           // Skip this test in replay mode as we're using a dummy key
           return;
         }
@@ -149,21 +149,6 @@ void main() {
       setUp(() {
         cassette = Cassette(cassettesDir, 'openai_get_models');
         vcr.insert(cassette);
-
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
 
         vcrClient = vcr.client;
         provider = OpenAIProvider();
@@ -196,21 +181,6 @@ void main() {
       setUp(() {
         cassette = Cassette(cassettesDir, 'openai_chat');
         vcr.insert(cassette);
-
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
 
         vcrClient = vcr.client;
         provider = OpenAIProvider();
@@ -261,21 +231,6 @@ void main() {
         cassette = Cassette(cassettesDir, 'openai_chat_stream');
         vcr.insert(cassette);
 
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
-
         vcrClient = vcr.client;
         provider = OpenAIProvider();
         provider.setHttpClient(vcrClient);
@@ -325,21 +280,6 @@ void main() {
         cassette = Cassette(cassettesDir, 'openai_errors');
         vcr.insert(cassette);
 
-        switch (_vcrMode) {
-          case VCRMode.record:
-            vcr.record();
-            break;
-          case VCRMode.replay:
-            vcr.replay();
-            break;
-          case VCRMode.auto:
-            vcr.auto();
-            break;
-          case VCRMode.bypass:
-            vcr.bypass();
-            break;
-        }
-
         vcrClient = vcr.client;
         provider = OpenAIProvider();
         provider.setHttpClient(vcrClient);
@@ -354,7 +294,7 @@ void main() {
       });
 
       test('throws error for invalid model', () async {
-        if (_vcrMode == VCRMode.replay) {
+        if (!_isRecordMode && !_isLiveMode) {
           // Skip in replay mode - requires real API for new error recording
           return;
         }

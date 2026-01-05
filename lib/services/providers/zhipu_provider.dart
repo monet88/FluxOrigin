@@ -31,6 +31,9 @@ class ZhipuProvider implements AIProvider {
   String _baseUrl = 'https://open.bigmodel.cn/api/paas';
   String? _apiKey;
 
+  /// Optional HTTP client for testing (e.g., VCR recording/replay)
+  http.Client? _testClient;
+
   // Timeout constants
   static const Duration _testTimeout = Duration(seconds: 5);
   static const Duration _defaultChatTimeout = Duration(seconds: 60);
@@ -41,6 +44,19 @@ class ZhipuProvider implements AIProvider {
     _baseUrl = baseUrl;
     _apiKey = apiKey;
   }
+
+  /// Set a custom HTTP client for testing
+  ///
+  /// Allows injecting a VCR client for recording/replay without modifying
+  /// the core provider logic.
+  void setHttpClient(http.Client client) {
+    _testClient = client;
+  }
+
+  /// Get the HTTP client to use for requests
+  ///
+  /// Returns the test client if set, otherwise creates a default client.
+  http.Client get _client => _testClient ?? http.Client();
 
   /// Test connection to Zhipu AI
   ///
@@ -53,7 +69,7 @@ class ZhipuProvider implements AIProvider {
     }
 
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$_baseUrl/v4/models'),
             headers: {
@@ -130,7 +146,7 @@ class ZhipuProvider implements AIProvider {
         ...?options,
       };
 
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$_baseUrl/v4/chat/completions'),
             headers: {
@@ -210,7 +226,7 @@ class ZhipuProvider implements AIProvider {
       request.headers['Authorization'] = 'Bearer $_apiKey';
       request.sink.add(utf8.encode(jsonEncode(requestBody)));
 
-      final responseFuture = http.Client().send(request);
+      final responseFuture = _client.send(request);
       final streamedResponse = timeout == null
           ? await responseFuture
           : await responseFuture.timeout(timeout);

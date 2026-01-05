@@ -37,6 +37,9 @@ class GeminiProvider implements AIProvider {
   /// API key for authentication (passed as query parameter)
   String? _apiKey;
 
+  /// Optional HTTP client for testing (e.g., VCR recording/replay)
+  http.Client? _testClient;
+
   /// Timeout constants
   static const Duration _testTimeout = Duration(seconds: 5);
   static const Duration _defaultChatTimeout = Duration(seconds: 60);
@@ -51,6 +54,19 @@ class GeminiProvider implements AIProvider {
     _baseUrl = baseUrl;
     _apiKey = apiKey;
   }
+
+  /// Set a custom HTTP client for testing
+  ///
+  /// Allows injecting a VCR client for recording/replay without modifying
+  /// the core provider logic.
+  void setHttpClient(http.Client client) {
+    _testClient = client;
+  }
+
+  /// Get the HTTP client to use for requests
+  ///
+  /// Returns the test client if set, otherwise creates a default client.
+  http.Client get _client => _testClient ?? http.Client();
 
   /// Build URL with API key as query parameter
   ///
@@ -97,7 +113,7 @@ class GeminiProvider implements AIProvider {
         ],
       };
 
-      final response = await http
+      final response = await _client
           .post(
             url,
             headers: {'Content-Type': 'application/json'},
@@ -151,7 +167,7 @@ class GeminiProvider implements AIProvider {
         if (options != null) 'generationConfig': _buildGenerationConfig(options),
       };
 
-      final response = await http
+      final response = await _client
           .post(
             _buildUrl(model),
             headers: {'Content-Type': 'application/json'},
@@ -203,7 +219,7 @@ class GeminiProvider implements AIProvider {
       request.headers['Content-Type'] = 'application/json';
       request.sink.add(utf8.encode(jsonEncode(requestBody)));
 
-      final responseFuture = http.Client().send(request);
+      final responseFuture = _client.send(request);
       final streamedResponse = timeout == null
           ? await responseFuture.timeout(_defaultStreamTimeout)
           : await responseFuture.timeout(timeout);
