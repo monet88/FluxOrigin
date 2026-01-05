@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import '../models/translation_progress.dart';
 import '../services/ai_service.dart';
+import '../services/ai_provider.dart';
 import '../services/web_search_service.dart';
 import '../services/dev_logger.dart';
 import '../utils/text_processor.dart';

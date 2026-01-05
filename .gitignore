@@ -46,3 +46,6 @@ app.*.map.json
 # Bỏ qua folder chứa bộ cài
 releases/
 *.exe
+
+# bv (beads viewer) local config and caches
+.bv/

@@ -11,6 +11,7 @@ import '../widgets/language_selector.dart';
 import '../widgets/file_upload_zone.dart';
 import '../../controllers/translation_controller.dart';
 import '../../services/ai_service.dart';
+import '../../services/ai_provider.dart';
 import '../theme/config_provider.dart';
 import '../../utils/app_strings.dart';
 import '../widgets/ollama_connection_dialog.dart';
@@ -158,7 +159,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
     final aiService = AIService();
     aiService.setBaseUrl(configProvider.currentAiUrl);
     aiService.setProviderType(
-      configProvider.aiProvider == AIProvider.lmStudio
+      configProvider.aiProvider == AIProviderType.lmStudio
           ? AIProviderType.lmStudio
           : AIProviderType.ollama,
     );
@@ -193,7 +194,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
     // Set AI config from provider
     _controller.setAIUrl(configProvider.currentAiUrl);
     _controller.setAIProviderType(
-      configProvider.aiProvider == AIProvider.lmStudio
+      configProvider.aiProvider == AIProviderType.lmStudio
           ? AIProviderType.lmStudio
           : AIProviderType.ollama,
     );

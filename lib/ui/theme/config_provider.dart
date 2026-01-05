@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
-
-enum AIProvider { ollama, lmStudio }
+import '../../services/ai_provider.dart';
 
 class ConfigProvider extends ChangeNotifier {
   static const String _projectPathKey = 'project_path';
@@ -19,7 +18,7 @@ class ConfigProvider extends ChangeNotifier {
   String _selectedModel = 'qwen2.5:7b'; // Default model
   String _ollamaUrl = _defaultOllamaUrl;
   String _lmStudioUrl = _defaultLmStudioUrl;
-  AIProvider _aiProvider = AIProvider.ollama;
+  AIProviderType _aiProvider = AIProviderType.ollama;
   String _appLanguage = 'vi'; // Default language
   bool _isLoading = true;
   bool _ollamaConnected = true; // Stealth Mode: AI provider connection status
@@ -28,14 +27,14 @@ class ConfigProvider extends ChangeNotifier {
   String get selectedModel => _selectedModel;
   String get ollamaUrl => _ollamaUrl;
   String get lmStudioUrl => _lmStudioUrl;
-  AIProvider get aiProvider => _aiProvider;
+  AIProviderType get aiProvider => _aiProvider;
   String get appLanguage => _appLanguage;
   bool get isLoading => _isLoading;
   bool get ollamaConnected => _ollamaConnected;
 
   /// Get the current AI URL based on selected provider
   String get currentAiUrl =>
-      _aiProvider == AIProvider.ollama ? _ollamaUrl : _lmStudioUrl;
+      _aiProvider == AIProviderType.ollama ? _ollamaUrl : _lmStudioUrl;
 
   bool get isConfigured => _projectPath.isNotEmpty;
 
@@ -59,8 +58,10 @@ class ConfigProvider extends ChangeNotifier {
 
     // Load AI provider
     final providerStr = prefs.getString(_aiProviderKey) ?? 'ollama';
-    _aiProvider =
-        providerStr == 'lmStudio' ? AIProvider.lmStudio : AIProvider.ollama;
+    _aiProvider = AIProviderType.values.firstWhere(
+      (e) => e.name == providerStr,
+      orElse: () => AIProviderType.ollama,
+    );
 
     _isLoading = false;
     notifyListeners();
@@ -108,10 +109,9 @@ class ConfigProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setAIProvider(AIProvider provider) async {
+  Future<void> setAIProvider(AIProviderType provider) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_aiProviderKey,
-        provider == AIProvider.lmStudio ? 'lmStudio' : 'ollama');
+    await prefs.setString(_aiProviderKey, provider.name);
 
     _aiProvider = provider;
     notifyListeners();

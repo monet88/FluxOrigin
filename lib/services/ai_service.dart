@@ -5,6 +5,11 @@ import 'dev_logger.dart';
 import 'ai_provider.dart';
 import 'providers/ollama_provider.dart';
 import 'providers/lm_studio_provider.dart';
+import 'providers/openai_provider.dart';
+import 'providers/gemini_provider.dart';
+import 'providers/deepseek_provider.dart';
+import 'providers/zhipu_provider.dart';
+import 'providers/custom_provider.dart';
 
 class AIService {
   static const String _defaultBaseUrl = 'http://localhost:11434';
@@ -28,13 +33,15 @@ class AIService {
       case AIProviderType.lmStudio:
         return LMStudioProvider();
       case AIProviderType.openai:
+        return OpenAIProvider();
       case AIProviderType.gemini:
+        return GeminiProvider();
       case AIProviderType.deepseek:
+        return DeepSeekProvider();
       case AIProviderType.zhipu:
+        return ZhipuProvider();
       case AIProviderType.custom:
-        throw UnimplementedError(
-          'Provider $type not yet implemented. Use Ollama or LM Studio.',
-        );
+        return CustomProvider();
     }
   }
 

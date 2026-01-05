@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../theme/config_provider.dart';
 import '../widgets/path_setup_modal.dart';
 import '../../services/ai_service.dart';
+import '../../services/ai_provider.dart';
 import '../../utils/app_strings.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -65,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   void _updateAIServiceConfig(ConfigProvider config) {
-    if (config.aiProvider == AIProvider.lmStudio) {
+    if (config.aiProvider == AIProviderType.lmStudio) {
       _aiService.setBaseUrl(config.lmStudioUrl);
       _aiService.setProviderType(AIProviderType.lmStudio);
     } else {
@@ -89,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  Future<void> _checkAIConnection(AIProvider provider) async {
+  Future<void> _checkAIConnection(AIProviderType provider) async {
     if (!mounted) return;
 
     setState(() {
@@ -98,11 +99,11 @@ class _SettingsScreenState extends State<SettingsScreen>
       _isConnectionSuccess = null;
     });
 
-    final url = provider == AIProvider.lmStudio
+    final url = provider == AIProviderType.lmStudio
         ? _lmStudioUrlController.text.trim()
         : _ollamaUrlController.text.trim();
 
-    final providerType = provider == AIProvider.lmStudio
+    final providerType = provider == AIProviderType.lmStudio
         ? AIProviderType.lmStudio
         : AIProviderType.ollama;
 
@@ -115,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
       if (success) {
         // Build localized success message
-        final key = provider == AIProvider.lmStudio
+        final key = provider == AIProviderType.lmStudio
             ? 'lmstudio_connection_success'
             : 'ollama_connection_success';
         message = AppStrings.get(lang, key)
@@ -144,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       if (success) {
         final config = context.read<ConfigProvider>();
         // Save URL to config
-        if (provider == AIProvider.lmStudio) {
+        if (provider == AIProviderType.lmStudio) {
           await config.setLmStudioUrl(url);
         } else {
           await config.setOllamaUrl(url);
@@ -159,7 +160,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  Future<void> _switchAIProvider(AIProvider provider) async {
+  Future<void> _switchAIProvider(AIProviderType provider) async {
     final config = context.read<ConfigProvider>();
     await config.setAIProvider(provider);
 
@@ -602,17 +603,17 @@ class _SettingsScreenState extends State<SettingsScreen>
                               label: 'Ollama',
                               icon: FontAwesomeIcons.server,
                               isSelected:
-                                  config.aiProvider == AIProvider.ollama,
-                              onTap: () => _switchAIProvider(AIProvider.ollama),
+                                  config.aiProvider == AIProviderType.ollama,
+                              onTap: () => _switchAIProvider(AIProviderType.ollama),
                             ),
                             const SizedBox(width: 12),
                             _buildProviderButton(
                               label: 'LM Studio',
                               icon: FontAwesomeIcons.desktop,
                               isSelected:
-                                  config.aiProvider == AIProvider.lmStudio,
+                                  config.aiProvider == AIProviderType.lmStudio,
                               onTap: () =>
-                                  _switchAIProvider(AIProvider.lmStudio),
+                                  _switchAIProvider(AIProviderType.lmStudio),
                             ),
                           ],
                         ),
@@ -642,7 +643,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          config.aiProvider == AIProvider.lmStudio
+                          config.aiProvider == AIProviderType.lmStudio
                               ? 'URL LM Studio Server'
                               : 'URL Ollama Server',
                           style: TextStyle(
@@ -655,7 +656,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          config.aiProvider == AIProvider.lmStudio
+                          config.aiProvider == AIProviderType.lmStudio
                               ? AppStrings.get(lang, 'lmstudio_url_subtitle')
                               : AppStrings.get(lang, 'ollama_url_subtitle'),
                           style: TextStyle(
@@ -671,7 +672,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                             Expanded(
                               child: TextField(
                                 controller:
-                                    config.aiProvider == AIProvider.lmStudio
+                                    config.aiProvider == AIProviderType.lmStudio
                                         ? _lmStudioUrlController
                                         : _ollamaUrlController,
                                 style: TextStyle(
@@ -682,7 +683,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 ),
                                 decoration: InputDecoration(
                                   hintText:
-                                      config.aiProvider == AIProvider.lmStudio
+                                      config.aiProvider == AIProviderType.lmStudio
                                           ? 'http://localhost:1234'
                                           : 'http://localhost:11434',
                                   hintStyle: TextStyle(
@@ -811,7 +812,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           ),
                         ],
                         // Note for LM Studio users
-                        if (config.aiProvider == AIProvider.lmStudio) ...[
+                        if (config.aiProvider == AIProviderType.lmStudio) ...[
                           const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.all(12),
