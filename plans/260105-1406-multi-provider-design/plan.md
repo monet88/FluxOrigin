@@ -226,9 +226,128 @@ String _customApiKey = '';
 
 ---
 
+## Error Handling
+
+### Error Types
+
+```dart
+/// Error types for AI provider operations
+enum AIProviderError {
+  connectionFailed,     // Network unreachable
+  authenticationFailed, // Invalid API key (401/403)
+  rateLimited,          // Too many requests (429)
+  modelNotFound,        // Model doesn't exist
+  timeout,              // Request exceeded timeout
+  unknown,              // Unexpected error
+}
+```
+
+### Retry Policy
+
+- **Max retries**: 3
+- **Backoff**: Exponential (1s, 2s, 4s)
+- **Retryable errors**: connectionFailed, timeout, rateLimited
+- **Non-retryable**: authenticationFailed, modelNotFound
+
+---
+
+## Timeouts
+
+| Operation | Timeout | Configurable |
+|-----------|---------|--------------|
+| testConnection | 5s | No |
+| chat | 60s | Yes |
+| chatStream | 120s total | Yes |
+| getAvailableModels | 10s | No |
+
+---
+
+## Security
+
+### API Key Storage
+
+- **Package**: `flutter_secure_storage` (NOT plain SharedPreferences)
+- **Encryption**: AES-256 (platform-native keychain/keystore)
+- **Validation**: Test connection on save, show success/error feedback
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+- Mock all providers with `MockAIProvider`
+- Test error handling for each error type
+- Test retry logic with simulated failures
+
+### Integration Tests
+
+- Use VCR pattern (recorded responses) for cloud providers
+- Add `--mock` flag for development mode
+- Test backward compatibility for existing Ollama/LM Studio users
+
+### Acceptance Criteria
+
+```gherkin
+Scenario: Valid API key connection
+  Given valid OpenAI API key entered
+  When user clicks "Test Connection"
+  Then success message shows within 5 seconds
+  And model dropdown populates with available models
+
+Scenario: Invalid API key
+  Given invalid API key entered
+  When user clicks "Test Connection"
+  Then error message "Invalid API key" shows
+  And model dropdown remains empty
+
+Scenario: Migration from v2.0.2
+  Given existing user with Ollama configured
+  When app upgrades to new version
+  Then Ollama settings preserved
+  And app functions without reconfiguration
+```
+
+---
+
+## Updated Interface
+
+```dart
+abstract class AIProvider {
+  String get name;
+  String get displayName;
+  bool get isCloud;
+  bool get requiresApiKey;
+
+  /// Configure provider with URL and optional API key
+  void configure({required String baseUrl, String? apiKey});
+
+  /// Test connection, returns error type or null on success
+  Future<AIProviderError?> testConnection();
+
+  Future<List<String>> getAvailableModels();
+
+  Future<String> chat(
+    String prompt,
+    String model, {
+    Map<String, dynamic>? options,
+    Duration? timeout,
+  });
+
+  Stream<String> chatStream(
+    String prompt,
+    String model, {
+    Map<String, dynamic>? options,
+    Duration? timeout,
+  });
+}
+```
+
+---
+
 ## Notes
 
 - Backward compatible: existing `AIService` API unchanged
-- API keys encrypted via SharedPreferences
+- API keys stored securely via `flutter_secure_storage`
 - Custom provider supports any OpenAI-compatible API (e.g., ProxyPal at localhost:8317)
-- Gemini uses different auth pattern (query param vs header)
+- Gemini uses different auth pattern (query param vs header) - handled internally
