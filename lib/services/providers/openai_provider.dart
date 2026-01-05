@@ -31,6 +31,12 @@ class OpenAIProvider implements AIProvider {
   /// API key for Bearer authentication
   String? _apiKey;
 
+  /// Optional HTTP client for testing (e.g., VCR recording/replay)
+  ///
+  /// If null, uses the default http client via top-level functions.
+  /// Allows dependency injection for integration tests.
+  http.Client? _testClient;
+
   // Timeout constants
   static const Duration _testTimeout = Duration(seconds: 5);
   static const Duration _defaultChatTimeout = Duration(seconds: 60);
@@ -42,6 +48,25 @@ class OpenAIProvider implements AIProvider {
     _apiKey = apiKey;
   }
 
+  /// Set a custom HTTP client for testing
+  ///
+  /// Allows dependency injection of a test client (e.g., VCR client)
+  /// for recording/replaying HTTP interactions in integration tests.
+  ///
+  /// Example:
+  /// ```dart
+  /// final vcrClient = DartVCRClient(cassette, Mode.replay);
+  /// provider.setHttpClient(vcrClient);
+  /// ```
+  void setHttpClient(http.Client client) {
+    _testClient = client;
+  }
+
+  /// Get the HTTP client to use for requests
+  ///
+  /// Returns the test client if set, otherwise creates a new default client.
+  http.Client get _client => _testClient ?? http.Client();
+
   @override
   Future<AIProviderError?> testConnection() async {
     if (_apiKey == null || _apiKey!.isEmpty) {
@@ -49,7 +74,7 @@ class OpenAIProvider implements AIProvider {
     }
 
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$_baseUrl/v1/models'),
             headers: {'Authorization': 'Bearer $_apiKey'},
@@ -107,7 +132,7 @@ class OpenAIProvider implements AIProvider {
         ...?options,
       };
 
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$_baseUrl/v1/chat/completions'),
             headers: {
@@ -184,7 +209,7 @@ class OpenAIProvider implements AIProvider {
       request.sink.add(utf8.encode(jsonEncode(requestBody)));
 
       // Send with timeout
-      final responseFuture = http.Client().send(request);
+      final responseFuture = _client.send(request);
       final streamedResponse = timeout == null
           ? await responseFuture.timeout(_defaultChatStreamTimeout)
           : await responseFuture.timeout(timeout);

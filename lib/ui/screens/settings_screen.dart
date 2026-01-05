@@ -36,14 +36,29 @@ class _SettingsScreenState extends State<SettingsScreen>
   ];
 
   final AIService _aiService = AIService();
+  // Local provider URL controllers
   final TextEditingController _ollamaUrlController = TextEditingController();
   final TextEditingController _lmStudioUrlController = TextEditingController();
+  // Cloud provider API key controllers
+  final TextEditingController _openaiApiKeyController = TextEditingController();
+  final TextEditingController _geminiApiKeyController = TextEditingController();
+  final TextEditingController _deepseekApiKeyController = TextEditingController();
+  final TextEditingController _zhipuApiKeyController = TextEditingController();
+  // Custom provider controllers
+  final TextEditingController _customUrlController = TextEditingController();
+  final TextEditingController _customApiKeyController = TextEditingController();
+
   bool _isCheckingConnection = false;
   String? _connectionStatus;
   bool? _isConnectionSuccess;
   List<String> _installedModels = [];
   final Map<String, double?> _downloadProgress = {};
   bool _isLoadingModels = false;
+
+  // Collapsible section states
+  bool _localSectionExpanded = true;
+  bool _cloudSectionExpanded = true;
+  bool _customSectionExpanded = false;
 
   @override
   void initState() {
@@ -60,18 +75,49 @@ class _SettingsScreenState extends State<SettingsScreen>
     _ollamaUrlController.text = config.ollamaUrl;
     _lmStudioUrlController.text = config.lmStudioUrl;
 
+    // Load API keys from secure storage
+    _openaiApiKeyController.text = config.openaiApiKey;
+    _geminiApiKeyController.text = config.geminiApiKey;
+    _deepseekApiKeyController.text = config.deepseekApiKey;
+    _zhipuApiKeyController.text = config.zhipuApiKey;
+    _customUrlController.text = config.customUrl;
+    _customApiKeyController.text = config.customApiKey;
+
     // Set AIService based on current provider
     _updateAIServiceConfig(config);
     _checkInstalledModels();
   }
 
   void _updateAIServiceConfig(ConfigProvider config) {
-    if (config.aiProvider == AIProviderType.lmStudio) {
-      _aiService.setBaseUrl(config.lmStudioUrl);
-      _aiService.setProviderType(AIProviderType.lmStudio);
-    } else {
-      _aiService.setBaseUrl(config.ollamaUrl);
-      _aiService.setProviderType(AIProviderType.ollama);
+    switch (config.aiProvider) {
+      case AIProviderType.lmStudio:
+        _aiService.setBaseUrl(config.lmStudioUrl);
+        _aiService.setProviderType(AIProviderType.lmStudio);
+        break;
+      case AIProviderType.ollama:
+        _aiService.setBaseUrl(config.ollamaUrl);
+        _aiService.setProviderType(AIProviderType.ollama);
+        break;
+      case AIProviderType.openai:
+        _aiService.setBaseUrl('https://api.openai.com');
+        _aiService.setProviderType(AIProviderType.openai);
+        break;
+      case AIProviderType.gemini:
+        _aiService.setBaseUrl('https://generativelanguage.googleapis.com');
+        _aiService.setProviderType(AIProviderType.gemini);
+        break;
+      case AIProviderType.deepseek:
+        _aiService.setBaseUrl('https://api.deepseek.com');
+        _aiService.setProviderType(AIProviderType.deepseek);
+        break;
+      case AIProviderType.zhipu:
+        _aiService.setBaseUrl('https://open.bigmodel.cn/api/paas');
+        _aiService.setProviderType(AIProviderType.zhipu);
+        break;
+      case AIProviderType.custom:
+        _aiService.setBaseUrl(config.customUrl);
+        _aiService.setProviderType(AIProviderType.custom);
+        break;
     }
   }
 
@@ -80,6 +126,12 @@ class _SettingsScreenState extends State<SettingsScreen>
     WidgetsBinding.instance.removeObserver(this);
     _ollamaUrlController.dispose();
     _lmStudioUrlController.dispose();
+    _openaiApiKeyController.dispose();
+    _geminiApiKeyController.dispose();
+    _deepseekApiKeyController.dispose();
+    _zhipuApiKeyController.dispose();
+    _customUrlController.dispose();
+    _customApiKeyController.dispose();
     super.dispose();
   }
 
@@ -174,8 +226,21 @@ class _SettingsScreenState extends State<SettingsScreen>
     // Update AIService config
     _updateAIServiceConfig(config);
 
+    // Save current API keys before switching
+    await _saveApiKeys(config);
+
     // Check models for the new provider
     _checkInstalledModels();
+  }
+
+  /// Save API keys from text controllers to secure storage
+  Future<void> _saveApiKeys(ConfigProvider config) async {
+    await config.setOpenaiApiKey(_openaiApiKeyController.text.trim());
+    await config.setGeminiApiKey(_geminiApiKeyController.text.trim());
+    await config.setDeepseekApiKey(_deepseekApiKeyController.text.trim());
+    await config.setZhipuApiKey(_zhipuApiKeyController.text.trim());
+    await config.setCustomUrl(_customUrlController.text.trim());
+    await config.setCustomApiKey(_customApiKeyController.text.trim());
   }
 
   Future<void> _checkInstalledModels() async {
@@ -852,6 +917,193 @@ class _SettingsScreenState extends State<SettingsScreen>
 
               const SizedBox(height: 16),
 
+              // Cloud Provider API Keys (New section for multi-provider support)
+              Consumer<ConfigProvider>(
+                builder: (context, config, _) => _ProviderSection(
+                  title: 'Cloud Providers',
+                  subtitle: 'Configure API keys for cloud AI services',
+                  isDark: widget.isDark,
+                  isExpanded: _cloudSectionExpanded,
+                  icon: FontAwesomeIcons.cloud,
+                  onToggle: () => setState(() => _cloudSectionExpanded = !_cloudSectionExpanded),
+                  children: [
+                    const SizedBox(height: 12),
+                    // OpenAI API Key
+                    _ApiKeyField(
+                      label: 'OpenAI API Key',
+                      hintText: 'sk-...',
+                      controller: _openaiApiKeyController,
+                      isDark: widget.isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    // Gemini API Key
+                    _ApiKeyField(
+                      label: 'Google Gemini API Key',
+                      hintText: 'AIza...',
+                      controller: _geminiApiKeyController,
+                      isDark: widget.isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    // DeepSeek API Key
+                    _ApiKeyField(
+                      label: 'DeepSeek API Key',
+                      hintText: 'sk-...',
+                      controller: _deepseekApiKeyController,
+                      isDark: widget.isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    // Zhipu API Key
+                    _ApiKeyField(
+                      label: 'Zhipu AI (Z.AI) API Key',
+                      hintText: 'Your API key',
+                      controller: _zhipuApiKeyController,
+                      isDark: widget.isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    // Save button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await _saveApiKeys(config);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('API keys saved successfully!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const FaIcon(FontAwesomeIcons.save, size: 14),
+                          label: const Text('Save API Keys'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.isDark
+                                ? AppColors.lightPrimary
+                                : AppColors.lightPrimary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Custom Provider Section
+              Consumer<ConfigProvider>(
+                builder: (context, config, _) => _ProviderSection(
+                  title: 'Custom Provider',
+                  subtitle: 'Configure your own OpenAI-compatible API endpoint',
+                  isDark: widget.isDark,
+                  isExpanded: _customSectionExpanded,
+                  icon: FontAwesomeIcons.server,
+                  onToggle: () => setState(() => _customSectionExpanded = !_customSectionExpanded),
+                  children: [
+                    const SizedBox(height: 12),
+                    // Custom Provider URL
+                    TextField(
+                      controller: _customUrlController,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: widget.isDark ? Colors.grey[200] : AppColors.lightPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Base URL',
+                        hintText: 'https://api.example.com',
+                        hintStyle: TextStyle(
+                          color: widget.isDark ? Colors.grey[600] : Colors.grey[400],
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                        filled: true,
+                        fillColor: widget.isDark
+                            ? Colors.black.withValues(alpha: 0.2)
+                            : AppColors.lightPaper,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: widget.isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Custom Provider API Key (optional)
+                    _ApiKeyField(
+                      label: 'API Key (Optional)',
+                      hintText: 'Leave empty if not required',
+                      controller: _customApiKeyController,
+                      isDark: widget.isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    // Save and Test buttons
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await _saveApiKeys(config);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Custom provider configuration saved!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const FaIcon(FontAwesomeIcons.save, size: 14),
+                          label: const Text('Save'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.isDark
+                                ? AppColors.lightPrimary
+                                : AppColors.lightPrimary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: _isCheckingConnection
+                              ? null
+                              : () => _checkAIConnection(AIProviderType.custom),
+                          icon: _isCheckingConnection
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const FaIcon(
+                                  FontAwesomeIcons.plug,
+                                  size: 14,
+                                ),
+                          label: Text(_isCheckingConnection ? 'Testing...' : 'Test Connection'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.isDark
+                                ? Colors.green
+                                : Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
               // Model Selection - Show installed models
               Container(
                 decoration: BoxDecoration(
@@ -1275,6 +1527,199 @@ class _SettingRow extends StatelessWidget {
           trailing,
         ],
       ),
+    );
+  }
+}
+
+/// Collapsible section widget for provider groups
+class _ProviderSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool isDark;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+  final List<Widget> children;
+  final IconData icon;
+
+  const _ProviderSection({
+    required this.title,
+    required this.subtitle,
+    required this.isDark,
+    required this.isExpanded,
+    required this.onToggle,
+    required this.children,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header (tappable)
+          InkWell(
+            onTap: onToggle,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  FaIcon(
+                    icon,
+                    size: 16,
+                    color: isDark ? Colors.white.withValues(alpha: 0.7) : AppColors.lightPrimary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.grey[100] : AppColors.lightPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.grey[500] : AppColors.lightPrimary.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  FaIcon(
+                    isExpanded ? FontAwesomeIcons.chevronUp : FontAwesomeIcons.chevronDown,
+                    size: 14,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Section content (collapsible)
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(children: children),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// API Key input field widget
+class _ApiKeyField extends StatelessWidget {
+  final String label;
+  final String hintText;
+  final TextEditingController controller;
+  final bool isDark;
+  final VoidCallback? onTestConnection;
+  final bool? isTestingSuccess;
+  final String? testMessage;
+
+  const _ApiKeyField({
+    required this.label,
+    required this.hintText,
+    required this.controller,
+    required this.isDark,
+    this.onTestConnection,
+    this.isTestingSuccess,
+    this.testMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isDark ? Colors.grey[200] : AppColors.lightPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                obscureText: true,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey[200] : AppColors.lightPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  filled: true,
+                  fillColor: isDark ? Colors.black.withValues(alpha: 0.2) : AppColors.lightPaper,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (onTestConnection != null) ...[
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: onTestConnection,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  backgroundColor: isDark
+                      ? AppColors.lightPrimary.withValues(alpha: 0.1)
+                      : AppColors.lightPrimary,
+                  foregroundColor: isDark ? Colors.white : AppColors.lightPrimary,
+                ),
+                child: const Text('Test'),
+              ),
+            ],
+          ],
+        ),
+        if (testMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            testMessage!,
+            style: TextStyle(
+              fontSize: 12,
+              color: isTestingSuccess == true
+                  ? Colors.green
+                  : isTestingSuccess == false
+                      ? Colors.red
+                      : Colors.grey,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

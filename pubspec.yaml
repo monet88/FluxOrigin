@@ -9,15 +9,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
   # Window management
   window_manager: ^0.3.0
-  
+
   # UI dependencies
   google_fonts: ^6.1.0
   font_awesome_flutter: ^10.6.0
   flutter_animate: ^4.3.0
-  
+
   # State management
   provider: ^6.1.0
   file_picker: ^10.3.7
@@ -28,7 +28,7 @@ dependencies:
   csv: ^6.0.0
   html: ^0.15.4
   desktop_drop: ^0.4.4
-  
+
   # File parsing
   epubx: ^4.0.0
   path: ^1.9.0
@@ -38,6 +38,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
   msix: ^3.16.0
+  dartvcr: ^0.3.0
 
 dependency_overrides:
   image: ^3.3.0
@@ -59,4 +60,3 @@ msix_config:
   # Các quyền truy cập file nếu app cần (vì MSIX chạy trong sandbox)
   # un-comment nếu app cần đọc/ghi file tự do ngoài thư mục app
   # execution_alias: fluxorigin
-
