@@ -107,13 +107,14 @@ FluxOrigin/
 
 | File | Topic |
 |------|-------|
-| `docs/project-overview-pdr.md` | Vision, requirements, roadmap |
-| `docs/system-architecture.md` | Architecture diagrams, data flow |
-| `docs/codebase-summary.md` | Directory structure, module breakdown |
-| `docs/code-standards.md` | Coding conventions, review checklist |
-| `README.md` | User guide (Vietnamese) |
-| `PRIVACY.md` | Privacy policy |
-| `AGENTS.md` | Developer workflow with beads |
+| [`docs/index.md`](docs/index.md) | **Navigation hub** |
+| [`docs/project-overview-pdr.md`](docs/project-overview-pdr.md) | Vision, requirements, roadmap |
+| [`docs/system-architecture.md`](docs/system-architecture.md) | Architecture diagrams, data flow |
+| [`docs/codebase-summary.md`](docs/codebase-summary.md) | Directory structure, module breakdown |
+| [`docs/code-standards.md`](docs/code-standards.md) | Coding conventions, review checklist |
+| [`README.md`](README.md) | User guide (Vietnamese) |
+| [`PRIVACY.md`](PRIVACY.md) | Privacy policy |
+| [`AGENTS.md`](AGENTS.md) | Developer workflow with beads |
 
 ---
 
