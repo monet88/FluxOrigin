@@ -2,14 +2,44 @@ import 'dart:convert';
 import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
 import 'dev_logger.dart';
-
-enum AIProviderType { ollama, lmStudio }
+import 'ai_provider.dart';
+import 'providers/ollama_provider.dart';
+import 'providers/lm_studio_provider.dart';
 
 class AIService {
   static const String _defaultBaseUrl = 'http://localhost:11434';
   String _baseUrl = _defaultBaseUrl;
   AIProviderType _providerType = AIProviderType.ollama;
   final DevLogger _logger = DevLogger();
+
+  /// Provider instance cache - creates and caches providers per type
+  static final Map<AIProviderType, AIProvider> _providerCache = {};
+
+  /// Get or create provider instance for given type
+  static AIProvider _getProvider(AIProviderType type) {
+    return _providerCache.putIfAbsent(type, () => _createProvider(type));
+  }
+
+  /// Factory method to create provider instances
+  static AIProvider _createProvider(AIProviderType type) {
+    switch (type) {
+      case AIProviderType.ollama:
+        return OllamaProvider();
+      case AIProviderType.lmStudio:
+        return LMStudioProvider();
+      case AIProviderType.openai:
+      case AIProviderType.gemini:
+      case AIProviderType.deepseek:
+      case AIProviderType.zhipu:
+      case AIProviderType.custom:
+        throw UnimplementedError(
+          'Provider $type not yet implemented. Use Ollama or LM Studio.',
+        );
+    }
+  }
+
+  /// Get the current active provider instance
+  AIProvider get _currentProvider => _getProvider(_providerType);
 
   /// Set the base URL for AI API
   void setBaseUrl(String url) {
@@ -25,8 +55,9 @@ class AIService {
   /// Set the AI provider type
   void setProviderType(AIProviderType type) {
     _providerType = type;
-    _logger.info('AIService',
-        'Provider type set to: ${type == AIProviderType.ollama ? 'Ollama' : 'LM Studio'}');
+    // Configure the new provider with current baseUrl
+    _currentProvider.configure(baseUrl: _baseUrl);
+    _logger.info('AIService', 'Provider type set to: ${type.name}');
   }
 
   /// Get the chat API endpoint based on provider
@@ -35,14 +66,6 @@ class AIService {
       return '$_baseUrl/v1/chat/completions';
     }
     return '$_baseUrl/api/chat';
-  }
-
-  /// Get the tags/models API endpoint based on provider
-  String get _tagsUrl {
-    if (_providerType == AIProviderType.lmStudio) {
-      return '$_baseUrl/v1/models';
-    }
-    return '$_baseUrl/api/tags';
   }
 
   /// Get the pull API endpoint (Ollama only)
@@ -56,45 +79,33 @@ class AIService {
   /// errorCode is null on success, or one of: 'error_status', 'error_connect', 'error_timeout', 'error_generic'
   Future<(bool, String?, int)> checkConnection(
       {String? url, AIProviderType? providerType}) async {
+    final testProviderType = providerType ?? _providerType;
+    final testProvider = _getProvider(testProviderType);
+
+    // Configure with test URL if provided, otherwise use current baseUrl
     final testUrl = url ?? _baseUrl;
-    final provider = providerType ?? _providerType;
-    String normalizedUrl = testUrl.trim();
-    if (normalizedUrl.endsWith('/')) {
-      normalizedUrl = normalizedUrl.substring(0, normalizedUrl.length - 1);
+    testProvider.configure(baseUrl: testUrl);
+
+    // Test connection using provider interface
+    final error = await testProvider.testConnection();
+
+    if (error == null) {
+      // Success - get model count
+      final models = await testProvider.getAvailableModels();
+      return (true, null, models.length);
     }
 
-    final modelsEndpoint = provider == AIProviderType.lmStudio
-        ? '$normalizedUrl/v1/models'
-        : '$normalizedUrl/api/tags';
+    // Map AIProviderError to legacy error codes
+    final errorCode = switch (error) {
+      AIProviderError.connectionFailed => 'error_connect',
+      AIProviderError.timeout => 'error_timeout',
+      AIProviderError.authenticationFailed => 'error_status:401',
+      AIProviderError.rateLimited => 'error_status:429',
+      AIProviderError.modelNotFound => 'error_status:404',
+      AIProviderError.unknown => 'error_generic',
+    };
 
-    try {
-      final response = await http
-          .get(Uri.parse(modelsEndpoint))
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-
-        if (provider == AIProviderType.lmStudio) {
-          // LM Studio returns { data: [...] }
-          final List<dynamic> models = data['data'] ?? [];
-          return (true, null, models.length);
-        } else {
-          // Ollama returns { models: [...] }
-          final List<dynamic> models = data['models'] ?? [];
-          return (true, null, models.length);
-        }
-      } else {
-        return (false, 'error_status:${response.statusCode}', 0);
-      }
-    } on http.ClientException {
-      return (false, 'error_connect', 0);
-    } catch (e) {
-      if (e.toString().contains('TimeoutException')) {
-        return (false, 'error_timeout', 0);
-      }
-      return (false, 'error_generic', 0);
-    }
+    return (false, errorCode, 0);
   }
 
   static const Map<String, String> _prompts = {
@@ -195,9 +206,8 @@ $sample
     final List<String> lines = response.split('\n');
     final StringBuffer cleanBuffer = StringBuffer();
 
-    for (final line in lines) {
-      // 1. Xóa các dòng Header nếu AI lỡ sinh ra
-      lines.removeWhere((line) {
+    // 1. Xóa các dòng Header nếu AI lỡ sinh ra
+    lines.removeWhere((line) {
         final lower = line.toLowerCase().trim();
         return lower.startsWith('original') ||
             lower.startsWith('term') ||
@@ -274,7 +284,6 @@ $sample
           cleanBuffer.writeln('"$original","$vietnamese"');
         }
       }
-    }
 
     return cleanBuffer.toString().trim();
   }
@@ -658,27 +667,7 @@ Use this context to maintain narrative flow, consistent pronouns, and proper sub
   }
 
   Future<List<String>> getInstalledModels() async {
-    try {
-      final response = await http.get(Uri.parse(_tagsUrl));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-
-        if (_providerType == AIProviderType.lmStudio) {
-          // LM Studio returns { data: [{ id: "model-name", ... }] }
-          final List<dynamic> models = data['data'] ?? [];
-          return models.map<String>((m) => m['id'] as String).toList();
-        } else {
-          // Ollama returns { models: [{ name: "model-name", ... }] }
-          final List<dynamic> models = data['models'] ?? [];
-          return models.map<String>((m) => m['name'] as String).toList();
-        }
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
+    return await _currentProvider.getAvailableModels();
   }
 
   /// Check if current provider supports model management (pull/delete)
