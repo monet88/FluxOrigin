@@ -136,7 +136,7 @@ void main() {
 
       test('returns response for simple prompt', () async {
         const prompt = 'Say "Hello, World!" in exactly those words.';
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-flash-preview';
 
         final response = await provider.chat(prompt, model);
 
@@ -146,7 +146,7 @@ void main() {
 
       test('handles generation config options', () async {
         const prompt = 'Generate a short word.';
-        const model = 'gemini-2.0-flash';
+        const model = 'gemini-3-flash-preview';
         final options = {'temperature': 0.8, 'maxOutputTokens': 10};
 
         final response = await provider.chat(prompt, model, options: options);
@@ -179,7 +179,7 @@ void main() {
         'streams response chunks',
         () async {
           const prompt = 'Count from 1 to 3.';
-          const model = 'gemini-2.0-flash';
+          const model = 'gemini-3-flash-preview';
 
           final chunks = <String>[];
           await for (final chunk in provider.chatStream(prompt, model)) {
