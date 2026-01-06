@@ -99,7 +99,7 @@ void main() {
         provider = ZhipuProvider();
         provider.setHttpClient(vcrClient);
         provider.configure(
-          baseUrl: 'https://open.bigmodel.cn',
+          baseUrl: 'https://open.bigmodel.cn/api/paas',
           apiKey: _getApiKey(),
         );
       });
@@ -125,7 +125,7 @@ void main() {
         provider = ZhipuProvider();
         provider.setHttpClient(vcrClient);
         provider.configure(
-          baseUrl: 'https://open.bigmodel.cn',
+          baseUrl: 'https://open.bigmodel.cn/api/paas',
           apiKey: _getApiKey(),
         );
       });
@@ -136,7 +136,7 @@ void main() {
 
       test('returns response for simple prompt', () async {
         const prompt = 'Say "Hello, World!" in exactly those words.';
-        const model = 'glm-4-flash';
+        const model = 'glm-4.5-flash';
 
         final response = await provider.chat(prompt, model);
 
@@ -156,7 +156,7 @@ void main() {
         provider = ZhipuProvider();
         provider.setHttpClient(vcrClient);
         provider.configure(
-          baseUrl: 'https://open.bigmodel.cn',
+          baseUrl: 'https://open.bigmodel.cn/api/paas',
           apiKey: _getApiKey(),
         );
       });
@@ -169,7 +169,7 @@ void main() {
         'streams response chunks',
         () async {
           const prompt = 'Count from 1 to 3.';
-          const model = 'glm-4-flash';
+          const model = 'glm-4.5-flash';
 
           final chunks = <String>[];
           await for (final chunk in provider.chatStream(prompt, model)) {
