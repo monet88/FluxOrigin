@@ -5,9 +5,9 @@
  * Uses dartvcr package for cassette-based testing.
  *
  * Usage:
- * - Record: flutter test test/integration/providers/zhipu_provider_integration_test.dart --record
- * - Replay: flutter test test/integration/providers/zhipu_provider_integration_test.dart --mock
- * - Live:   flutter test test/integration/providers/zhipu_provider_integration_test.dart --live
+ * - Record: VCR_MODE=record ZHIPU_API_KEY=xxx flutter test test/integration/wip/zhipu_provider_integration_test.dart
+ * - Replay: flutter test test/integration/wip/zhipu_provider_integration_test.dart
+ * - Live:   VCR_MODE=live ZHIPU_API_KEY=xxx flutter test test/integration/wip/zhipu_provider_integration_test.dart
  */
 
 import 'dart:io';
@@ -19,15 +19,16 @@ import 'package:http/http.dart' as http;
 
 /// Test configuration
 ///
-/// VCR mode is controlled by command-line arguments.
+/// VCR mode is controlled by VCR_MODE environment variable.
+/// Values: 'record', 'live', 'replay' (default)
 bool get _isRecordMode {
-  final args = Platform.executableArguments;
-  return args.contains('--record');
+  final mode = Platform.environment['VCR_MODE']?.toLowerCase();
+  return mode == 'record';
 }
 
 bool get _isLiveMode {
-  final args = Platform.executableArguments;
-  return args.contains('--live');
+  final mode = Platform.environment['VCR_MODE']?.toLowerCase();
+  return mode == 'live';
 }
 
 /// Get API key from environment
@@ -164,17 +165,23 @@ void main() {
         vcr.eject();
       });
 
-      test('streams response chunks', () async {
-        const prompt = 'Count from 1 to 3.';
-        const model = 'glm-4-flash';
+      test(
+        'streams response chunks',
+        () async {
+          const prompt = 'Count from 1 to 3.';
+          const model = 'glm-4-flash';
 
-        final chunks = <String>[];
-        await for (final chunk in provider.chatStream(prompt, model)) {
-          chunks.add(chunk);
-        }
+          final chunks = <String>[];
+          await for (final chunk in provider.chatStream(prompt, model)) {
+            chunks.add(chunk);
+          }
 
-        expect(chunks, isNotEmpty);
-      });
+          expect(chunks, isNotEmpty);
+        },
+        skip: !_isLiveMode
+            ? 'Streaming tests require live mode (VCR does not support streaming)'
+            : null,
+      );
     });
   });
 }

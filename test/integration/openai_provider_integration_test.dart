@@ -5,9 +5,9 @@
  * Uses dartvcr package for cassette-based testing.
  *
  * Usage:
- * - Record: flutter test test/integration/providers/openai_provider_integration_test.dart --record
- * - Replay: flutter test test/integration/providers/openai_provider_integration_test.dart --mock
- * - Live:   flutter test test/integration/providers/openai_provider_integration_test.dart --live
+ * - Record: VCR_MODE=record OPENAI_API_KEY=sk-xxx flutter test test/integration/wip/openai_provider_integration_test.dart
+ * - Replay: flutter test test/integration/wip/openai_provider_integration_test.dart
+ * - Live:   VCR_MODE=live OPENAI_API_KEY=sk-xxx flutter test test/integration/wip/openai_provider_integration_test.dart
  */
 
 import 'dart:io';
@@ -19,15 +19,16 @@ import 'package:http/http.dart' as http;
 
 /// Test configuration
 ///
-/// VCR mode is controlled by command-line arguments.
+/// VCR mode is controlled by VCR_MODE environment variable.
+/// Values: 'record', 'live', 'replay' (default)
 bool get _isRecordMode {
-  final args = Platform.executableArguments;
-  return args.contains('--record');
+  final mode = Platform.environment['VCR_MODE']?.toLowerCase();
+  return mode == 'record';
 }
 
 bool get _isLiveMode {
-  final args = Platform.executableArguments;
-  return args.contains('--live');
+  final mode = Platform.environment['VCR_MODE']?.toLowerCase();
+  return mode == 'live';
 }
 
 /// Get API key from environment
@@ -244,33 +245,45 @@ void main() {
         vcr.eject();
       });
 
-      test('streams response chunks', () async {
-        const prompt = 'Count from 1 to 5 slowly.';
-        const model = 'gpt-4o-mini';
+      test(
+        'streams response chunks',
+        () async {
+          const prompt = 'Count from 1 to 5 slowly.';
+          const model = 'gpt-4o-mini';
 
-        final chunks = <String>[];
-        await for (final chunk in provider.chatStream(prompt, model)) {
-          chunks.add(chunk);
-        }
+          final chunks = <String>[];
+          await for (final chunk in provider.chatStream(prompt, model)) {
+            chunks.add(chunk);
+          }
 
-        expect(chunks, isNotEmpty, reason: 'Should receive at least one chunk');
-        final fullResponse = chunks.join();
-        expect(fullResponse, isNotEmpty);
-      });
+          expect(chunks, isNotEmpty, reason: 'Should receive at least one chunk');
+          final fullResponse = chunks.join();
+          expect(fullResponse, isNotEmpty);
+        },
+        skip: !_isLiveMode
+            ? 'Streaming tests require live mode (VCR does not support streaming)'
+            : null,
+      );
 
-      test('completes stream when done', () async {
-        const prompt = 'Say "Done" when finished.';
-        const model = 'gpt-4o-mini';
+      test(
+        'completes stream when done',
+        () async {
+          const prompt = 'Say "Done" when finished.';
+          const model = 'gpt-4o-mini';
 
-        var chunkCount = 0;
-        await for (final chunk in provider.chatStream(prompt, model)) {
-          chunkCount++;
-          // Limit chunks to avoid infinite streaming in test
-          if (chunkCount > 100) break;
-        }
+          var chunkCount = 0;
+          await for (final chunk in provider.chatStream(prompt, model)) {
+            chunkCount++;
+            // Limit chunks to avoid infinite streaming in test
+            if (chunkCount > 100) break;
+          }
 
-        expect(chunkCount, greaterThan(0));
-      });
+          expect(chunkCount, greaterThan(0));
+        },
+        skip: !_isLiveMode
+            ? 'Streaming tests require live mode (VCR does not support streaming)'
+            : null,
+      );
     });
 
     group('error handling', () {

@@ -103,7 +103,7 @@ class GeminiProvider implements AIProvider {
 
     try {
       // Use a simple request with the smallest model to test connection
-      final url = _buildUrl('gemini-3-flash');
+      final url = _buildUrl('gemini-2.0-flash');
 
       final requestBody = {
         'contents': [

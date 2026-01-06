@@ -5,9 +5,9 @@
  * Uses dartvcr package for cassette-based testing.
  *
  * Usage:
- * - Record: flutter test test/integration/providers/gemini_provider_integration_test.dart --record
- * - Replay: flutter test test/integration/providers/gemini_provider_integration_test.dart --mock
- * - Live:   flutter test test/integration/providers/gemini_provider_integration_test.dart --live
+ * - Record: VCR_MODE=record GEMINI_API_KEY=xxx flutter test test/integration/wip/gemini_provider_integration_test.dart
+ * - Replay: flutter test test/integration/wip/gemini_provider_integration_test.dart
+ * - Live:   VCR_MODE=live GEMINI_API_KEY=xxx flutter test test/integration/wip/gemini_provider_integration_test.dart
  */
 
 import 'dart:io';
@@ -19,15 +19,16 @@ import 'package:http/http.dart' as http;
 
 /// Test configuration
 ///
-/// VCR mode is controlled by command-line arguments.
+/// VCR mode is controlled by VCR_MODE environment variable.
+/// Values: 'record', 'live', 'replay' (default)
 bool get _isRecordMode {
-  final args = Platform.executableArguments;
-  return args.contains('--record');
+  final mode = Platform.environment['VCR_MODE']?.toLowerCase();
+  return mode == 'record';
 }
 
 bool get _isLiveMode {
-  final args = Platform.executableArguments;
-  return args.contains('--live');
+  final mode = Platform.environment['VCR_MODE']?.toLowerCase();
+  return mode == 'live';
 }
 
 /// Get API key from environment
@@ -135,7 +136,7 @@ void main() {
 
       test('returns response for simple prompt', () async {
         const prompt = 'Say "Hello, World!" in exactly those words.';
-        const model = 'gemini-2-flash';
+        const model = 'gemini-2.0-flash';
 
         final response = await provider.chat(prompt, model);
 
@@ -145,7 +146,7 @@ void main() {
 
       test('handles generation config options', () async {
         const prompt = 'Generate a short word.';
-        const model = 'gemini-2-flash';
+        const model = 'gemini-2.0-flash';
         final options = {'temperature': 0.8, 'maxOutputTokens': 10};
 
         final response = await provider.chat(prompt, model, options: options);
@@ -174,19 +175,25 @@ void main() {
         vcr.eject();
       });
 
-      test('streams response chunks', () async {
-        const prompt = 'Count from 1 to 3.';
-        const model = 'gemini-2-flash';
+      test(
+        'streams response chunks',
+        () async {
+          const prompt = 'Count from 1 to 3.';
+          const model = 'gemini-2.0-flash';
 
-        final chunks = <String>[];
-        await for (final chunk in provider.chatStream(prompt, model)) {
-          chunks.add(chunk);
-        }
+          final chunks = <String>[];
+          await for (final chunk in provider.chatStream(prompt, model)) {
+            chunks.add(chunk);
+          }
 
-        expect(chunks, isNotEmpty);
-        final fullResponse = chunks.join();
-        expect(fullResponse, isNotEmpty);
-      });
+          expect(chunks, isNotEmpty);
+          final fullResponse = chunks.join();
+          expect(fullResponse, isNotEmpty);
+        },
+        skip: !_isLiveMode
+            ? 'Streaming tests require live mode (VCR does not support streaming)'
+            : null,
+      );
     });
   });
 }
