@@ -49,6 +49,22 @@ class CustomProvider implements AIProvider {
   /// Default timeout for streaming chat requests
   static const Duration _defaultStreamTimeout = Duration(seconds: 120);
 
+  /// Optional test HTTP client for VCR testing
+  http.Client? _testClient;
+
+  /// Set custom HTTP client for testing (VCR integration)
+  ///
+  /// Allows injecting a VCR client for recording/replay without modifying
+  /// the core provider logic.
+  void setHttpClient(http.Client client) {
+    _testClient = client;
+  }
+
+  /// Get the HTTP client to use for requests
+  ///
+  /// Returns the test client if set, otherwise creates a default client.
+  http.Client get _client => _testClient ?? http.Client();
+
   @override
   void configure({required String baseUrl, String? apiKey}) {
     _baseUrl = baseUrl;
@@ -76,7 +92,7 @@ class CustomProvider implements AIProvider {
     }
 
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$_baseUrl/v1/models'),
             headers: _apiKey != null && _apiKey!.isNotEmpty
@@ -109,7 +125,7 @@ class CustomProvider implements AIProvider {
     }
 
     try {
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse('$_baseUrl/v1/models'),
             headers: _apiKey != null && _apiKey!.isNotEmpty
@@ -155,7 +171,7 @@ class CustomProvider implements AIProvider {
         ...?options,
       };
 
-      final response = await http
+      final response = await _client
           .post(
             Uri.parse('$_baseUrl/v1/chat/completions'),
             headers: _buildHeaders(),
@@ -227,7 +243,7 @@ class CustomProvider implements AIProvider {
 
       request.sink.add(utf8.encode(jsonEncode(requestBody)));
 
-      final responseFuture = http.Client().send(request);
+      final responseFuture = _client.send(request);
       final streamedResponse = timeout == null
           ? await responseFuture.timeout(_defaultStreamTimeout)
           : await responseFuture.timeout(timeout);
